@@ -14,6 +14,8 @@
     <!-- Firebase SDK (Compat - paling mudah untuk Kas RT) -->
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+    <!-- SheetJS untuk Export Excel -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <style>
         body { 
             font-family: 'Inter', sans-serif; 
@@ -251,6 +253,14 @@
                         <div>
                             <h4 class="font-bold text-xs text-white">Sinkron Data Transaksi</h4>
                             <p class="text-[10px] text-violet-100">Upload Riwayat ke Firebase</p>
+                        </div>
+                    </button>
+
+                    <button onclick="exportExcelBackup()" class="w-full flex items-center gap-3 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white p-3 rounded-xl shadow-md transition text-left">
+                        <div class="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center text-white text-sm">📊</div>
+                        <div>
+                            <h4 class="font-bold text-xs text-white">Export Excel Backup</h4>
+                            <p class="text-[10px] text-emerald-100">Warga+Tagihan+Transaksi .xlsx</p>
                         </div>
                     </button>
 
@@ -660,7 +670,21 @@
             } catch(e){ alert("❌ Gagal konek: " + e.message); }
         }
 
+        let isDataLoaded = false;
         let ADMIN_PASS = localStorage.getItem('rt_admin_pass') || "rt02admin";
+
+        async function tulisLog(action, detail){
+            if(!firebaseConnected) return;
+            try{
+                await db.collection("logs").add({
+                    action: action,
+                    detail: detail,
+                    by: "admin",
+                    at: firebase.firestore.FieldValue.serverTimestamp(),
+                    tgl: new Date().toISOString()
+                });
+            }catch(e){ console.log("log gagal", e); }
+        }
 
         let isAdminLoggedIn = (() => {
             try {
@@ -982,6 +1006,12 @@
                 renderRiwayatTransaksi();
                 updateDashboardView();
                 console.log("✅ Firebase sync selesai");
+                isDataLoaded = true;
+                const btnGen2 = document.getElementById('btn-generate-warga');
+                if(btnGen2){ btnGen2.disabled = false; btnGen2.innerText = "⚡ Generate"; btnGen2.classList.remove('opacity-50','cursor-not-allowed'); }
+                // Validasi: cek warga dengan nominal 0
+                const wargaNol = dataWarga.filter(w => (w.status==="Tetap"||w.status==="Kontrak") && (!w.nominal || Number(w.nominal)===0));
+                if(wargaNol.length>0) console.warn("⚠️ Ada warga Tetap/Kontrak nominal 0:", wargaNol.map(w=>w.blok).join(", "));
 
                 // Realtime listener (opsional): update otomatis jika ada perubahan di device lain
                 db.collection("config").doc("jenisKas").onSnapshot(doc=>{
@@ -1032,6 +1062,9 @@
                 document.getElementById('pdf-tgl-selesai').value = hariIni;
 
                 initFirebase();
+                // FIX4: kunci Generate sampai data siap
+                const btnGen = document.getElementById('btn-generate-warga');
+                if(btnGen){ btnGen.disabled = true; btnGen.innerText = "⏳ Loading..."; btnGen.classList.add('opacity-50','cursor-not-allowed'); }
                 refreshDropdowns();
                 setupUIMode(); 
                 renderJenisKasList(); 
@@ -1317,6 +1350,9 @@
             const jenisKas = document.getElementById('w-jeniskas').value;
 
             if(!nama || !blok) return alert("Isi Nama dan Blok!");
+            if((status==="Tetap" || status==="Kontrak") && (!nominal || nominal<=0)){
+                return alert("❌ Warga Tetap/Kontrak tidak boleh nominal Rp 0! Isi nominal >0 atau ganti status jadi Pengurus/Rumah Kosong/Pindah.");
+            }
 
             let dataObj = editId === "" ? 
                 { id: String(Date.now()), nama: nama.toUpperCase(), blok, hp, status, nominal, jenisKas } :
@@ -1331,6 +1367,7 @@
             // Sync ke Firebase (single doc)
             if(firebaseConnected) syncWargaKeCloudSingle(dataObj);
 
+            tulisLog("TAMBAH/EDIT_WARGA", `${dataObj.nama} Blok ${dataObj.blok} - ${dataObj.status} Rp ${dataObj.nominal}`);
             alert("Data warga berhasil disimpan! (Firebase)");
         }
 
@@ -1415,6 +1452,12 @@
 
         function prosesGenerateTagihanCustom() {
             if(!isAdminLoggedIn) return;
+            if(!isDataLoaded){
+                return alert("⏳ Data warga belum selesai loading dari Firebase! Tunggu sampai 'Firebase sync selesai' di Console, lalu coba lagi.");
+            }
+            if(dataWarga.length===0){
+                return alert("❌ Data warga kosong! Tidak bisa Generate. Cek Firestore → warga.");
+            }
             const jenisKasPilihan = document.getElementById('gen-jeniskas').value;
             const periodePilihan = bersihkanFormatPeriode(document.getElementById('gen-periode').value);
             const nominalCustom = parseInt(document.getElementById('gen-nominal').value) || 20000;
@@ -1432,10 +1475,22 @@
             const judul = document.getElementById('judul-kas-aktif');
             if(judul) judul.innerText = jenisKasPilihan;
 
+            // Validasi: cari warga Tetap/Kontrak nominal 0 -> skip dan warning
+            const wargaInvalid = dataWarga.filter(w => (w.status==="Tetap"||w.status==="Kontrak") && (!w.nominal || Number(w.nominal)===0));
+            if(wargaInvalid.length>0){
+                if(!confirm(`⚠️ Ada ${wargaInvalid.length} warga Tetap/Kontrak dengan nominal Rp 0 (Blok: ${wargaInvalid.map(w=>w.blok).join(", ")}).\nMereka akan DILEWATI tidak dibuatkan tagihan.\nLanjutkan Generate?`)) return;
+            }
+            // Lock: cek apakah tagihan periode ini sudah ada
+            const existingForPeriode = dataTagihan.filter(t => t.periode===periodePilihan && t.jenisKas===jenisKasPilihan);
+            if(existingForPeriode.length>0){
+                if(!confirm(`⚠️ Tagihan ${periodePilihan} - ${jenisKasPilihan} sudah ada ${existingForPeriode.length} data.\nGenerate ulang akan REPLACE (update nominal) bukan duplikat.\nLanjutkan?`)) return;
+            }
             let countGenerated = 0;
+            let countSkipped = 0;
             dataWarga.forEach(w => {
                 if(!w || !w.id) return;
-                if (w.status === "Pengurus (Gratis)" || w.status === "Rumah Kosong" || w.status === "Pindah") return;
+                if (w.status === "Pengurus (Gratis)" || w.status === "Rumah Kosong" || w.status === "Pindah") { countSkipped++; return; }
+                if ((w.status==="Tetap"||w.status==="Kontrak") && (!w.nominal || Number(w.nominal)===0)) { countSkipped++; return; }
 
                 let cleanPeriode = String(periodePilihan).replace(/\s+/g, '');
                 let cleanKas = String(jenisKasPilihan).replace(/\s+/g, '');
@@ -1471,7 +1526,8 @@
 
             if(firebaseConnected) syncTagihanKeCloudIncremental();
 
-            alert(`Selesai! Tagihan berhasil digenerate (${countGenerated} warga) & sync ke Firebase.`);
+            tulisLog("GENERATE_TAGIHAN", `${periodePilihan} - ${jenisKasPilihan} Rp ${nominalCustom} | Generate ${countGenerated} warga, skip ${countSkipped}`);
+            alert(`Selesai! Tagihan berhasil digenerate (${countGenerated} warga, skip ${countSkipped}) & sync ke Firebase.`);
         }
 
         async function hapusTagihan(id) {
@@ -1579,13 +1635,14 @@
         function gantiPencarianTagihan() { halamanAktifTagihan = 1; renderTagihan(); }
         function gantiHalamanTagihan(arah) { halamanAktifTagihan += arah; renderTagihan(); }
 
-        function ubahStatusTagihan(id, statusBaru) {
+        async function ubahStatusTagihan(id, statusBaru) {
             if(!isAdminLoggedIn) return;
             let targetTagihan = dataTagihan.find(t => String(t.id) === String(id));
             if(!targetTagihan) return;
 
             targetTagihan.status = statusBaru;
 
+            tulisLog(statusBaru==="LUNAS"?"BAYAR_LUNAS":"BATAL_BAYAR", `${targetTagihan.nama} Blok ${targetTagihan.blok} - ${targetTagihan.periode} ${targetTagihan.jenisKas} Rp ${targetTagihan.nominal}`);
             if(statusBaru === 'LUNAS') {
                 let trxObj = {
                     id: String(Date.now() + Math.floor(Math.random() * 1000)), 
@@ -1748,7 +1805,7 @@
             if(countEl) countEl.innerText = checkboxes.length;
         }
 
-        function hapusTransaksiTerpilih() {
+        async function hapusTransaksiTerpilih() {
             if(!isAdminLoggedIn) return;
             const checkboxes = document.querySelectorAll('.trx-checkbox:checked');
             if(checkboxes.length === 0) return alert("Pilih minimal satu transaksi yang ingin dihapus!");
@@ -1776,17 +1833,20 @@
                 const masterCb = document.getElementById('select-all-trx');
                 if(masterCb) masterCb.checked = false;
 
-                fetch(GAS_URL, { method: "POST", mode: "no-cors", headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ action: "tagihan_full_sync", payload: dataTagihan })
-                }).catch(e => console.log(e));
-                
+                if(firebaseConnected){
+                    try{
+                        for(let tid of idsToDelete) await db.collection("transaksi").doc(String(tid)).delete();
+                        // update tagihan status
+                        for(let t of dataTagihan) await db.collection("tagihan").doc(String(t.id)).set(t, {merge:true});
+                    }catch(e){ console.log(e); }
+                }
                 syncTransaksiKeCloudClean();
 
                 alert("Transaksi terpilih berhasil dihapus permanen!");
             }
         }
 
-        function hapusTransaksi(id) {
+        async function hapusTransaksi(id) {
             if(!isAdminLoggedIn) return;
             if(confirm("Hapus transaksi ini?")) {
                 let tr = dataTransaksi.find(x => String(x.id) === String(id));
@@ -1900,6 +1960,34 @@
             doc.save(`Laporan_Transaksi_${tglMulai}.pdf`); tutupModalPdf();
         }
 
+        function exportExcelBackup(){
+            try{
+                const wb = XLSX.utils.book_new();
+                // Sheet Warga
+                const wsWarga = XLSX.utils.json_to_sheet(dataWarga.map(w=>({ID:w.id, Nama:w.nama, Blok:w.blok, HP:w.hp, Status:w.status, Nominal:w.nominal, JenisKas:w.jenisKas})));
+                XLSX.utils.book_append_sheet(wb, wsWarga, "Warga");
+                // Sheet Tagihan
+                const wsTag = XLSX.utils.json_to_sheet(dataTagihan.map(t=>({ID:t.id, WargaID:t.wargaId, Nama:t.nama, Blok:t.blok, Periode:t.periode, JenisKas:t.jenisKas, Nominal:t.nominal, Status:t.status})));
+                XLSX.utils.book_append_sheet(wb, wsTag, "Tagihan");
+                // Sheet Transaksi
+                const wsTrx = XLSX.utils.json_to_sheet(dataTransaksi.map(tr=>({ID:tr.id, TagihanID:tr.tagihanId, Tipe:tr.tipe, Kategori:tr.kategori, JenisKas:tr.jenisKas, Nominal:tr.nominal, Keterangan:tr.keterangan, Tanggal:tr.tanggal})));
+                XLSX.utils.book_append_sheet(wb, wsTrx, "Transaksi");
+                // Sheet Rekap per Jenis Kas
+                const rekap = {};
+                dataTransaksi.forEach(tr=>{
+                    const k = tr.jenisKas || "Lainnya";
+                    if(!rekap[k]) rekap[k]={Masuk:0, Keluar:0};
+                    if(tr.tipe==="MASUK") rekap[k].Masuk += Number(tr.nominal)||0;
+                    if(tr.tipe==="KELUAR") rekap[k].Keluar += Number(tr.nominal)||0;
+                });
+                const rekapArr = Object.keys(rekap).map(k=>({JenisKas:k, Masuk:rekap[k].Masuk, Keluar:rekap[k].Keluar, Saldo:rekap[k].Masuk-rekap[k].Keluar}));
+                const wsRekap = XLSX.utils.json_to_sheet(rekapArr);
+                XLSX.utils.book_append_sheet(wb, wsRekap, "Rekap");
+                const tgl = new Date().toISOString().slice(0,10);
+                XLSX.writeFile(wb, `Backup-Kas-RT02-${tgl}.xlsx`);
+                tulisLog("EXPORT_EXCEL", `Backup ${dataWarga.length} warga, ${dataTagihan.length} tagihan, ${dataTransaksi.length} transaksi`);
+            }catch(e){ alert("Gagal export: "+e.message); }
+        }
         function downloadPdfStatusWarga(statusCari, periodeBulan, pilihanJenisKas) {
             const filteredTagihan = dataTagihan.filter(t => {
                 if(!t) return false;
@@ -1970,5 +2058,5 @@
             doc.save(namaFile); tutupModalPdf();
         }
     </script>
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a26db52a2dfd6d15',t:'MTc4NjAxNTgwNw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a26e38b79c5a1be6',t:'MTc4NjAyMTE5NQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
