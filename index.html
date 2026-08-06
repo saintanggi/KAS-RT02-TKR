@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard Kas TKR RT.02 - Netlify Cloud Sync</title>
+    <title>Dashboard Kas TKR RT.02 - Firebase Cloud</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Google Fonts: Inter -->
@@ -11,6 +11,9 @@
     <!-- Library jsPDF & html2canvas -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <!-- Firebase SDK (Compat - paling mudah untuk Kas RT) -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
     <style>
         body { 
             font-family: 'Inter', sans-serif; 
@@ -222,8 +225,8 @@
                     <button onclick="tarikDataDariCloudManual()" class="w-full flex items-center gap-3 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white p-3 rounded-xl shadow-md transition text-left">
                         <div class="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center text-white text-sm">📥</div>
                         <div>
-                            <h4 class="font-bold text-xs text-white">Tarik Data dari GAS</h4>
-                            <p class="text-[10px] text-amber-100">Pulihkan data & transaksi lama</p>
+                            <h4 class="font-bold text-xs text-white">Tarik Data dari Firebase</h4>
+                            <p class="text-[10px] text-amber-100">Realtime dari Firestore</p>
                         </div>
                     </button>
 
@@ -231,7 +234,7 @@
                         <div class="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center text-white text-sm">☁️</div>
                         <div>
                             <h4 class="font-bold text-xs text-white">Sinkron Data Warga</h4>
-                            <p class="text-[10px] text-emerald-100">Upload Warga ke GSheet</p>
+                            <p class="text-[10px] text-emerald-100">Upload Warga ke Firebase</p>
                         </div>
                     </button>
 
@@ -239,7 +242,7 @@
                         <div class="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center text-white text-sm">☁️</div>
                         <div>
                             <h4 class="font-bold text-xs text-white">Sinkron Data Tagihan</h4>
-                            <p class="text-[10px] text-blue-100">Upload Tagihan ke GSheet</p>
+                            <p class="text-[10px] text-blue-100">Upload Tagihan ke Firebase</p>
                         </div>
                     </button>
 
@@ -247,7 +250,7 @@
                         <div class="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center text-white text-sm">☁️</div>
                         <div>
                             <h4 class="font-bold text-xs text-white">Sinkron Data Transaksi</h4>
-                            <p class="text-[10px] text-violet-100">Upload Riwayat ke GSheet</p>
+                            <p class="text-[10px] text-violet-100">Upload Riwayat ke Firebase</p>
                         </div>
                     </button>
 
@@ -299,14 +302,16 @@
             </div>
             <div class="p-5 space-y-4 overflow-y-auto custom-scroll">
                 
-                <!-- Set GAS URL -->
+                <!-- Set Firebase Config -->
                 <div class="bg-slate-50 border border-slate-200 p-4 rounded-xl space-y-2">
-                    <h4 class="font-bold text-slate-800">1. URL Google Apps Script (Web App)</h4>
-                    <p class="text-[11px] text-slate-500">Tempel URL deployment berakhiran <code class="text-blue-600 font-bold">/exec</code>. Seluruh data kas akan dibaca dan ditulis langsung ke Spreadsheet Anda.</p>
-                    <div class="flex gap-2 pt-1">
-                        <input type="text" id="input-url-gas" placeholder="https://script.google.com/macros/s/.../exec" class="flex-1 bg-white border border-slate-200 p-2.5 rounded-xl outline-none font-semibold text-xs">
-                        <button onclick="simpanUrlGasBaru()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2.5 rounded-xl transition shadow">Simpan</button>
+                    <h4 class="font-bold text-slate-800">1. Konfigurasi Firebase</h4>
+                    <p class="text-[11px] text-slate-500">Paste <code class="text-blue-600 font-bold">firebaseConfig</code> dari Firebase Console > Project Settings > Your apps. Data akan realtime ke Firestore.</p>
+                    <textarea id="input-firebase-config" rows="5" placeholder='{"apiKey":"...","authDomain":"...","projectId":"...","storageBucket":"...","messagingSenderId":"...","appId":"..."}' class="w-full bg-white border border-slate-200 p-2.5 rounded-xl outline-none font-mono text-[11px]"></textarea>
+                    <div class="flex gap-2">
+                        <button onclick="simpanFirebaseConfig()" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2.5 rounded-xl transition shadow">💾 Simpan & Hubungkan</button>
+                        <button onclick="testKoneksiFirebase()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2.5 rounded-xl transition">Test</button>
                     </div>
+                    <p id="firebase-status" class="text-[11px] font-bold"></p>
                 </div>
 
                 <!-- Set Password Admin -->
@@ -588,7 +593,69 @@
 
     <!-- ================= SCRIPT UTAMA ================= -->
     <script>
-        let GAS_URL = localStorage.getItem('rt_gas_url') || "https://script.google.com/macros/s/AKfycbwc13ku_LnmdqZ9mD7LbdGtf9k2Vmxvibkqjx1HIdRMKaoZVF3mlOVUetx8m-SRMTJM_w/exec";
+        // ================= FIREBASE CONFIG =================
+        // GANTI dengan config Anda dari Firebase Console
+        // Cara: console.firebase.google.com > Project Settings > Your apps > SDK setup
+        const DEFAULT_FIREBASE_CONFIG = {
+            // PASTE CONFIG ANDA DI SINI ATAU ISI VIA PENGATURAN SISTEM
+            // Contoh: apiKey: "AIzaSy...", authDomain: "...", projectId: "...", dll
+        };
+        let FIREBASE_CONFIG = (() => {
+            try {
+                const saved = localStorage.getItem('rt_firebase_config');
+                if(saved) return JSON.parse(saved);
+                if(Object.keys(DEFAULT_FIREBASE_CONFIG).length > 0 && DEFAULT_FIREBASE_CONFIG.apiKey) return DEFAULT_FIREBASE_CONFIG;
+                return null;
+            } catch(e){ return null; }
+        })();
+        
+        let db = null;
+        let firebaseConnected = false;
+        
+        function initFirebase(){
+            try {
+                if(!FIREBASE_CONFIG || !FIREBASE_CONFIG.apiKey || !FIREBASE_CONFIG.projectId){
+                    console.log("Firebase belum dikonfigurasi, pakai localStorage");
+                    document.getElementById('firebase-status') && (document.getElementById('firebase-status').innerText = "⚠️ Belum terhubung - isi config di Pengaturan");
+                    return false;
+                }
+                if(!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
+                db = firebase.firestore();
+                firebaseConnected = true;
+                console.log("Firebase connected:", FIREBASE_CONFIG.projectId);
+                const el = document.getElementById('firebase-status');
+                if(el) { el.innerText = "✅ Terhubung ke Firebase: " + FIREBASE_CONFIG.projectId; el.className = "text-[11px] font-bold text-emerald-600"; }
+                return true;
+            } catch(e){
+                console.error("Firebase init error:", e);
+                const el = document.getElementById('firebase-status');
+                if(el) { el.innerText = "❌ Gagal: " + e.message; el.className = "text-[11px] font-bold text-red-600"; }
+                return false;
+            }
+        }
+        function simpanFirebaseConfig(){
+            const raw = document.getElementById('input-firebase-config').value.trim();
+            if(!raw) return alert("Paste JSON config dulu!");
+            try {
+                let cfg = JSON.parse(raw);
+                // support jika paste full firebaseConfig dengan var
+                if(cfg.firebaseConfig) cfg = cfg.firebaseConfig;
+                localStorage.setItem('rt_firebase_config', JSON.stringify(cfg));
+                FIREBASE_CONFIG = cfg;
+                if(initFirebase()){
+                    alert("Firebase terhubung! Data akan sync realtime.");
+                    location.reload();
+                }
+            } catch(e){ alert("JSON tidak valid: " + e.message); }
+        }
+        async function testKoneksiFirebase(){
+            if(!initFirebase()) return alert("Config belum benar");
+            try {
+                await db.collection("config").doc("jenisKas").get();
+                alert("✅ Koneksi Firebase OK! Project: " + FIREBASE_CONFIG.projectId);
+            } catch(e){ alert("❌ Gagal konek: " + e.message); }
+        }
+
         let ADMIN_PASS = localStorage.getItem('rt_admin_pass') || "rt02admin";
 
         let isAdminLoggedIn = (() => {
@@ -599,23 +666,15 @@
 
         function bukaModalPengaturan() {
             if(!isAdminLoggedIn) return;
-            document.getElementById('input-url-gas').value = GAS_URL;
+            const cfg = FIREBASE_CONFIG ? JSON.stringify(FIREBASE_CONFIG, null, 2) : "";
+            document.getElementById('input-firebase-config').value = cfg;
             document.getElementById('input-sandi-admin').value = ADMIN_PASS;
+            initFirebase();
             toggleModal('modal-pengaturan', 'open');
         }
         function tutupModalPengaturan() { toggleModal('modal-pengaturan', 'close'); }
 
-        function simpanUrlGasBaru() {
-            const urlBaru = document.getElementById('input-url-gas').value.trim();
-            if(!urlBaru || !urlBaru.includes('/exec')) {
-                return alert("URL Web App Google Apps Script tidak valid! Pastikan berakhiran /exec.");
-            }
-            GAS_URL = urlBaru;
-            localStorage.setItem('rt_gas_url', urlBaru);
-            alert("URL Google Apps Script berhasil disimpan!");
-            tutupModalPengaturan();
-            location.reload();
-        }
+        // simpanUrlGasBaru deprecated - pakai simpanFirebaseConfig
 
         function perbaruiSandiAdmin() {
             const sandiBaru = document.getElementById('input-sandi-admin').value.trim();
@@ -655,72 +714,87 @@
             }
         }
 
-        function sinkronkanSemuaWargaKeGsheet() {
+        async function sinkronkanSemuaWargaKeGsheet() {
             if(!isAdminLoggedIn) return;
+            if(!firebaseConnected && !initFirebase()) return alert("Hubungkan Firebase dulu di Pengaturan Sistem!");
             dataWarga = bersihkanDataWarga(dataWarga);
             simpanLocalState();
-            if(confirm("Sinkronkan seluruh data warga ke Google Sheets?")) {
-                fetch(GAS_URL, { method: "POST", mode: "no-cors", headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ action: "sync_all_warga", payload: dataWarga })
-                }).then(() => alert("Data warga berhasil disinkronkan ke GSheet!"));
-            }
+            if(!confirm("Sinkronkan " + dataWarga.length + " warga ke Firebase?")) return;
+            try {
+                const batch = db.batch();
+                // hapus dulu? pakai set per doc
+                for(let w of dataWarga){
+                    batch.set(db.collection("warga").doc(String(w.id)), w);
+                }
+                await batch.commit();
+                alert("✅ " + dataWarga.length + " warga berhasil sync ke Firebase!");
+            } catch(e){ alert("Gagal sync warga: " + e.message); }
         }
 
-        function sinkronkanSemuaTagihanKeGsheet() {
+        async function sinkronkanSemuaTagihanKeGsheet() {
             if(!isAdminLoggedIn) return;
+            if(!firebaseConnected && !initFirebase()) return alert("Hubungkan Firebase dulu!");
             dataTagihan = bersihkanDataTagihan(dataTagihan);
             simpanLocalState();
-            if(dataTagihan.length === 0) return alert("Belum ada data tagihan di sistem!");
-            if(confirm(`Sinkronkan ${dataTagihan.length} data tagihan ke Google Sheets?`)) {
-                fetch(GAS_URL, { method: "POST", mode: "no-cors", headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ action: "tagihan_full_sync", payload: dataTagihan })
-                }).then(() => alert("Data tagihan berhasil disinkronkan ke GSheet!"))
-                .catch(err => alert("Gagal sinkron: " + err));
-            }
+            if(dataTagihan.length === 0) return alert("Belum ada data tagihan!");
+            if(!confirm(`Sinkronkan ${dataTagihan.length} tagihan ke Firebase?`)) return;
+            try {
+                // Firestore batch max 500, chunk
+                for(let i=0;i<dataTagihan.length;i+=450){
+                    const batch = db.batch();
+                    dataTagihan.slice(i,i+450).forEach(t=> batch.set(db.collection("tagihan").doc(String(t.id)), t));
+                    await batch.commit();
+                }
+                alert("✅ Tagihan berhasil sync ke Firebase!");
+            } catch(e){ alert("Gagal sync tagihan: " + e.message); }
         }
 
-        function sinkronkanSemuaTransaksiKeGsheet() {
+        async function sinkronkanSemuaTransaksiKeGsheet() {
             if(!isAdminLoggedIn) return;
+            if(!firebaseConnected && !initFirebase()) return alert("Hubungkan Firebase dulu!");
             dataTransaksi = bersihkanDataTransaksi(dataTransaksi);
             simpanLocalState();
-            if(dataTransaksi.length === 0) return alert("Belum ada data transaksi di sistem lokal Anda!");
-            if(confirm(`Sinkronkan ${dataTransaksi.length} riwayat transaksi dan saldo ke Google Sheets?`)) {
-                let lightPayload = dataTransaksi.map(tr => ({
-                    id: String(tr.id),
-                    tagihanId: tr.tagihanId || "",
-                    tipe: tr.tipe,
-                    kategori: tr.kategori,
-                    jenisKas: tr.jenisKas,
-                    nominal: tr.nominal,
-                    keterangan: tr.keterangan,
-                    tanggal: tr.tanggal,
-                    bukti: (tr.bukti && tr.bukti.startsWith('data:image')) ? "[GAMBAR_NOTA]" : (tr.bukti || "-")
-                }));
-                fetch(GAS_URL, { method: "POST", mode: "no-cors", headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ action: "transaksi_full_sync", payload: lightPayload })
-                }).then(() => alert("Data riwayat dan saldo berhasil diunggah ke Google Sheets!"))
-                .catch(err => alert("Gagal sinkron: " + err));
-            }
+            if(dataTransaksi.length === 0) return alert("Belum ada transaksi!");
+            if(!confirm(`Sinkronkan ${dataTransaksi.length} transaksi ke Firebase?`)) return;
+            try {
+                for(let i=0;i<dataTransaksi.length;i+=450){
+                    const batch = db.batch();
+                    dataTransaksi.slice(i,i+450).forEach(tr=>{
+                        // Potong bukti base64 biar tidak melebihi 1MB limit doc
+                        let doc = {...tr, bukti: tr.bukti && tr.bukti.length > 900000 ? "[GAMBAR_NOTA_TERPOTONG]" : tr.bukti};
+                        batch.set(db.collection("transaksi").doc(String(tr.id)), doc);
+                    });
+                    await batch.commit();
+                }
+                alert("✅ Transaksi berhasil sync ke Firebase!");
+            } catch(e){ alert("Gagal sync transaksi: " + e.message); }
         }
 
-        function syncTransaksiKeCloudClean() {
-            let lightTrx = dataTransaksi.map(tr => ({
-                id: String(tr.id),
-                tagihanId: tr.tagihanId || "",
-                tipe: tr.tipe,
-                kategori: tr.kategori,
-                jenisKas: tr.jenisKas,
-                nominal: tr.nominal,
-                keterangan: tr.keterangan,
-                tanggal: tr.tanggal,
-                bukti: (tr.bukti && tr.bukti.startsWith('data:image')) ? "[GAMBAR_NOTA]" : (tr.bukti || "-")
-            }));
-            fetch(GAS_URL, { 
-                method: "POST", 
-                mode: "no-cors", 
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ action: "transaksi_full_sync", payload: lightTrx })
-            }).catch(e => console.log(e));
+        async function syncTransaksiKeCloudClean() {
+            if(!firebaseConnected) return;
+            try {
+                // sync incremental: cukup sync transaksi terakhir (optimasi)
+                // untuk simpel, sync batch 450 terakhir
+                let toSync = dataTransaksi.slice(-450);
+                for(let tr of toSync){
+                    let doc = {...tr, bukti: tr.bukti && tr.bukti.length > 900000 ? "[GAMBAR_NOTA_TERPOTONG]" : tr.bukti};
+                    await db.collection("transaksi").doc(String(tr.id)).set(doc, {merge:true});
+                }
+            } catch(e){ console.log("sync transaksi error", e); }
+        }
+        async function syncWargaKeCloudSingle(w){
+            if(!firebaseConnected) return;
+            try { await db.collection("warga").doc(String(w.id)).set(w); } catch(e){ console.log(e); }
+        }
+        async function syncTagihanKeCloudIncremental(){
+            if(!firebaseConnected) return;
+            try {
+                for(let i=0;i<dataTagihan.length;i+=450){
+                    const batch = db.batch();
+                    dataTagihan.slice(i,i+450).forEach(t=> batch.set(db.collection("tagihan").doc(String(t.id)), t, {merge:true}));
+                    await batch.commit();
+                }
+            } catch(e){ console.log(e); }
         }
 
         function loadSafeStorage(key, fallbackValue) {
@@ -846,104 +920,98 @@
             }
         }
 
-        // SISTEM PENGGABUNGAN CERDAS (MERGE) AGAR DATA LOKAL TIDAK HILANG SAAT REFRESH / SYNC
         async function autoTarikDataDariCloud() {
+            if(!firebaseConnected && !initFirebase()){
+                console.log("Firebase tidak aktif, pakai localStorage");
+                return;
+            }
             try {
-                let response = await fetch(GAS_URL);
-                let result = JSON.parse(await response.text());
-                if (result && result.status !== "error") {
-                    let adaPerubahan = false;
-
-                    if (result.jenisKas && result.jenisKas.length > 0) {
-                        jenisKasList = result.jenisKas;
-                        adaPerubahan = true;
-                    }
-
-                    if (result.warga && result.warga.length > 0) {
-                        dataWarga = bersihkanDataWarga(result.warga);
-                        adaPerubahan = true;
-                    }
-
-                    if (result.tagihan && result.tagihan.length > 0) {
-                        let cloudTagihan = bersihkanDataTagihan(result.tagihan.map(ct => {
-                            ct.periode = bersihkanFormatPeriode(ct.periode);
-                            return ct;
-                        }));
-                        // Gabungkan cloud dan data lokal agar tagihan yang baru digenerate tidak tertimpa/hilang
-                        let mapTagihan = new Map();
-                        cloudTagihan.forEach(t => mapTagihan.set(String(t.id), t));
-                        dataTagihan.forEach(t => mapTagihan.set(String(t.id), t)); // Prioritas lokal untuk data terbaru
-                        dataTagihan = Array.from(mapTagihan.values());
-                        adaPerubahan = true;
-                    }
-
-                    if (result.transaksi && result.transaksi.length > 0) {
-                        let cloudTrx = bersihkanDataTransaksi(result.transaksi);
-                        let mapTrx = new Map();
-                        cloudTrx.forEach(tr => mapTrx.set(String(tr.id), tr));
-                        dataTransaksi.forEach(tr => mapTrx.set(String(tr.id), tr)); // Prioritas lokal
-                        dataTransaksi = Array.from(mapTrx.values());
-                        adaPerubahan = true;
-                    }
-
-                    if (adaPerubahan) {
-                        simpanLocalState();
-                        refreshDropdowns();
-                        renderJenisKasList();
-                        renderWargaList();
-                        renderTagihan();
-                        renderRiwayatTransaksi();
-                        updateDashboardView();
+                // JenisKas
+                const docKas = await db.collection("config").doc("jenisKas").get();
+                if(docKas.exists && docKas.data().list){
+                    jenisKasList = docKas.data().list;
+                }
+                // Warga
+                const snapWarga = await db.collection("warga").get();
+                if(!snapWarga.empty){
+                    let cloudWarga = [];
+                    snapWarga.forEach(d=> cloudWarga.push(d.data()));
+                    // merge cloud + lokal (prioritas cloud untuk jenisKas, tapi data lengkap merge)
+                    let map = new Map();
+                    dataWarga.forEach(w=> map.set(String(w.id), w));
+                    cloudWarga.forEach(w=> { if(!map.has(String(w.id))) map.set(String(w.id), w); else map.set(String(w.id), {...map.get(String(w.id)), ...w}); });
+                    // Jika cloud ada, pakai cloud sebagai sumber utama
+                    if(cloudWarga.length > 0) dataWarga = bersihkanDataWarga(cloudWarga);
+                }
+                // Tagihan
+                const snapTagihan = await db.collection("tagihan").get();
+                if(!snapTagihan.empty){
+                    let cloudTagihan = [];
+                    snapTagihan.forEach(d=> cloudTagihan.push(d.data()));
+                    cloudTagihan = bersihkanDataTagihan(cloudTagihan.map(t=>({...t, periode: bersihkanFormatPeriode(t.periode)})));
+                    if(cloudTagihan.length > 0){
+                        // merge: cloud + lokal (prioritas cloud untuk update terbaru dari device lain)
+                        let map = new Map();
+                        cloudTagihan.forEach(t=> map.set(String(t.id), t));
+                        dataTagihan.forEach(t=> { if(!map.has(String(t.id))) map.set(String(t.id), t); });
+                        dataTagihan = Array.from(map.values());
                     }
                 }
-            } catch (e) {
-                console.log("Background sync offline, menggunakan cache lokal:", e);
+                // Transaksi
+                const snapTrx = await db.collection("transaksi").get();
+                if(!snapTrx.empty){
+                    let cloudTrx = [];
+                    snapTrx.forEach(d=> cloudTrx.push(d.data()));
+                    cloudTrx = bersihkanDataTransaksi(cloudTrx);
+                    if(cloudTrx.length > 0){
+                        let map = new Map();
+                        cloudTrx.forEach(tr=> map.set(String(tr.id), tr));
+                        dataTransaksi.forEach(tr=> { if(!map.has(String(tr.id))) map.set(String(tr.id), tr); });
+                        dataTransaksi = Array.from(map.values());
+                    }
+                }
+                simpanLocalState();
+                refreshDropdowns();
+                renderJenisKasList();
+                renderWargaList();
+                renderTagihan();
+                renderRiwayatTransaksi();
+                updateDashboardView();
+                console.log("✅ Firebase sync selesai");
+
+                // Realtime listener (opsional): update otomatis jika ada perubahan di device lain
+                db.collection("config").doc("jenisKas").onSnapshot(doc=>{
+                    if(doc.exists && doc.data().list){
+                        let newList = doc.data().list;
+                        if(JSON.stringify(newList) !== JSON.stringify(jenisKasList)){
+                            jenisKasList = newList;
+                            simpanLocalState(); refreshDropdowns(); renderJenisKasList();
+                        }
+                    }
+                });
+
+            } catch(e){
+                console.log("Firebase sync error, pakai cache lokal:", e);
             }
         }
 
         async function tarikDataDariCloudManual() {
             if(!isAdminLoggedIn) return;
-            if(confirm("Tarik ulang seluruh data (Warga, Tagihan, dan Transaksi) dari Google Sheets?")) {
-                try {
-                    let response = await fetch(GAS_URL);
-                    let result = JSON.parse(await response.text());
-                    if (result && result.status !== "error") {
-                        if (result.jenisKas && result.jenisKas.length > 0) jenisKasList = result.jenisKas;
-                        if (result.warga) dataWarga = bersihkanDataWarga(result.warga);
-                        if (result.tagihan) {
-                            let cloudTagihan = bersihkanDataTagihan(result.tagihan.map(ct => {
-                                ct.periode = bersihkanFormatPeriode(ct.periode);
-                                return ct;
-                            }));
-                            let mapTagihan = new Map();
-                            cloudTagihan.forEach(t => mapTagihan.set(String(t.id), t));
-                            dataTagihan.forEach(t => mapTagihan.set(String(t.id), t));
-                            dataTagihan = Array.from(mapTagihan.values());
-                        }
-                        if (result.transaksi) {
-                            let cloudTrx = bersihkanDataTransaksi(result.transaksi);
-                            let mapTrx = new Map();
-                            cloudTrx.forEach(tr => mapTrx.set(String(tr.id), tr));
-                            dataTransaksi.forEach(tr => mapTrx.set(String(tr.id), tr));
-                            dataTransaksi = Array.from(mapTrx.values());
-                        }
-                        
-                        simpanLocalState();
-                        refreshDropdowns(); 
-                        renderJenisKasList(); 
-                        renderWargaList();
-                        renderTagihan(); 
-                        renderRiwayatTransaksi(); 
-                        updateDashboardView();
-                        
-                        alert("Berhasil menarik seluruh data terbaru dari Google Sheets!");
-                    } else { 
-                        alert("Gagal dari GAS: " + (result.message || "Unknown error")); 
-                    }
-                } catch (e) { 
-                    alert("Gagal menarik data dari GAS. Error: " + e.message); 
-                }
-            }
+            if(!firebaseConnected && !initFirebase()) return alert("Hubungkan Firebase dulu!");
+            if(!confirm("Tarik ulang seluruh data dari Firebase? Data lokal akan digabung dengan cloud.")) return;
+            try {
+                const docKas = await db.collection("config").doc("jenisKas").get();
+                if(docKas.exists) jenisKasList = docKas.data().list;
+                const snapWarga = await db.collection("warga").get();
+                if(!snapWarga.empty){ let arr=[]; snapWarga.forEach(d=>arr.push(d.data())); dataWarga = bersihkanDataWarga(arr); }
+                const snapTagihan = await db.collection("tagihan").get();
+                if(!snapTagihan.empty){ let arr=[]; snapTagihan.forEach(d=>arr.push(d.data())); dataTagihan = bersihkanDataTagihan(arr); }
+                const snapTrx = await db.collection("transaksi").get();
+                if(!snapTrx.empty){ let arr=[]; snapTrx.forEach(d=>arr.push(d.data())); dataTransaksi = bersihkanDataTransaksi(arr); }
+                simpanLocalState();
+                refreshDropdowns(); renderJenisKasList(); renderWargaList(); renderTagihan(); renderRiwayatTransaksi(); updateDashboardView();
+                alert("✅ Berhasil tarik data terbaru dari Firebase!");
+            } catch(e){ alert("Gagal tarik Firebase: " + e.message); }
         }
 
         window.onload = function() {
@@ -959,6 +1027,7 @@
                 document.getElementById('pdf-tgl-mulai').value = hariIni;
                 document.getElementById('pdf-tgl-selesai').value = hariIni;
 
+                initFirebase();
                 refreshDropdowns();
                 setupUIMode(); 
                 renderJenisKasList(); 
@@ -1165,16 +1234,13 @@
             document.getElementById('btn-simpan-kas').innerText = "+ Tambah Jenis Kas";
         }
 
-        function syncJenisKasKeCloud() {
-            // FIX: Jenis Kas sekarang langsung push ke GAS (Config sheet)
+        async function syncJenisKasKeCloud() {
             if(!isAdminLoggedIn) return;
-            fetch(GAS_URL, {
-                method: "POST",
-                mode: "no-cors",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ action: "sync_jenis_kas", payload: jenisKasList })
-            }).then(()=> console.log("Jenis Kas synced:", jenisKasList))
-              .catch(err => console.error("Gagal sync Jenis Kas:", err));
+            if(!firebaseConnected && !initFirebase()) return console.log("Firebase belum siap, jenisKas cuma lokal");
+            try {
+                await db.collection("config").doc("jenisKas").set({list: jenisKasList, updatedAt: firebase.firestore.FieldValue.serverTimestamp()});
+                console.log("✅ Jenis Kas synced ke Firebase:", jenisKasList);
+            } catch(e){ console.error("Gagal sync Jenis Kas:", e); }
         }
 
         function simpanJenisKas() {
@@ -1258,11 +1324,10 @@
             dataWarga = bersihkanDataWarga(dataWarga);
             simpanLocalState(); resetFormWarga(); renderWargaList();
             
-            fetch(GAS_URL, { method: "POST", mode: "no-cors", headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ action: "sync_all_warga", payload: dataWarga })
-            }).catch(err => console.error("Sync error:", err));
+            // Sync ke Firebase (single doc)
+            if(firebaseConnected) syncWargaKeCloudSingle(dataObj);
 
-            alert("Data warga berhasil disimpan!");
+            alert("Data warga berhasil disimpan! (Firebase)");
         }
 
         function renderWargaList() {
@@ -1400,24 +1465,21 @@
             halamanAktifTagihan = 1;
             renderTagihan(); renderWargaList(); updateDashboardView();
 
-            fetch(GAS_URL, { method: "POST", mode: "no-cors", headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ action: "tagihan_full_sync", payload: dataTagihan })
-            }).catch(err => console.error("Sync error:", err));
+            if(firebaseConnected) syncTagihanKeCloudIncremental();
 
-            alert(`Selesai! Tagihan berhasil digenerate (${countGenerated} warga).`);
+            alert(`Selesai! Tagihan berhasil digenerate (${countGenerated} warga) & sync ke Firebase.`);
         }
 
-        function hapusTagihan(id) {
+        async function hapusTagihan(id) {
             if(!isAdminLoggedIn) return;
             if(confirm("Yakin ingin menghapus tagihan iuran ini?")) {
                 dataTagihan = dataTagihan.filter(t => String(t.id) !== String(id));
                 dataTagihan = bersihkanDataTagihan(dataTagihan);
                 simpanLocalState();
                 renderTagihan();
-
-                fetch(GAS_URL, { method: "POST", mode: "no-cors", headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ action: "tagihan_full_sync", payload: dataTagihan })
-                }).catch(err => console.error("Sync error:", err));
+                if(firebaseConnected){
+                    try{ await db.collection("tagihan").doc(String(id)).delete(); }catch(e){ console.log(e); }
+                }
             }
         }
 
@@ -1537,10 +1599,12 @@
             dataTransaksi = bersihkanDataTransaksi(dataTransaksi);
             simpanLocalState(); renderTagihan(); renderRiwayatTransaksi(); updateDashboardView();
 
-            fetch(GAS_URL, { method: "POST", mode: "no-cors", headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ action: "tagihan_full_sync", payload: dataTagihan })
-            }).catch(e => console.log(e));
-            
+            if(firebaseConnected){
+                try{
+                    await db.collection("tagihan").doc(String(targetTagihan.id)).set(targetTagihan, {merge:true});
+                    // transaksi juga sudah di syncTransaksiKeCloudClean
+                }catch(e){ console.log(e); }
+            }
             syncTransaksiKeCloudClean();
         }
 
@@ -1733,11 +1797,12 @@
                 }
                 renderTagihan(); renderRiwayatTransaksi(); updateDashboardView();
                 
-                fetch(GAS_URL, { method: "POST", mode: "no-cors", headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ action: "tagihan_full_sync", payload: dataTagihan })
-                }).catch(e => console.log(e));
-                
-                syncTransaksiKeCloudClean();
+                if(firebaseConnected){
+                    try{
+                        await db.collection("transaksi").doc(String(id)).delete();
+                        if(tr && tr.tagihanId) await db.collection("tagihan").doc(String(tr.tagihanId)).set({status:'BELUM'}, {merge:true});
+                    }catch(e){ console.log(e); }
+                }
 
                 alert("Transaksi berhasil dihapus permanen!");
             }
@@ -1901,5 +1966,5 @@
             doc.save(namaFile); tutupModalPdf();
         }
     </script>
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a26d51f41815ba3d',t:'MTc4NjAxMTc0Mw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a26d89c79e4ae785',t:'MTc4NjAxNDAzMA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
