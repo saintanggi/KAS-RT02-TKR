@@ -1165,6 +1165,18 @@
             document.getElementById('btn-simpan-kas').innerText = "+ Tambah Jenis Kas";
         }
 
+        function syncJenisKasKeCloud() {
+            // FIX: Jenis Kas sekarang langsung push ke GAS (Config sheet)
+            if(!isAdminLoggedIn) return;
+            fetch(GAS_URL, {
+                method: "POST",
+                mode: "no-cors",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ action: "sync_jenis_kas", payload: jenisKasList })
+            }).then(()=> console.log("Jenis Kas synced:", jenisKasList))
+              .catch(err => console.error("Gagal sync Jenis Kas:", err));
+        }
+
         function simpanJenisKas() {
             if(!isAdminLoggedIn) return;
             const inputEl = document.getElementById('input-nama-kas');
@@ -1175,11 +1187,16 @@
 
             if(editIndex === "") {
                 if(jenisKasList.includes(namaBaru)) return alert("Kas sudah ada!");
-                jenisKasList.push(namaBaru); alert(`Jenis kas "${namaBaru}" berhasil ditambahkan!`);
+                jenisKasList.push(namaBaru); 
+                alert(`Jenis kas "${namaBaru}" berhasil ditambahkan!`);
             } else {
                 jenisKasList[editIndex] = namaBaru; alert("Jenis kas berhasil diperbarui!"); resetFormKas();
             }
-            inputEl.value = ''; simpanLocalState(); refreshDropdowns(); renderJenisKasList();
+            inputEl.value = ''; 
+            simpanLocalState(); 
+            refreshDropdowns(); 
+            renderJenisKasList();
+            syncJenisKasKeCloud(); // <--- FIX: langsung sync ke GAS
         }
 
         function renderJenisKasList() {
@@ -1187,7 +1204,7 @@
             if(!tbody) return;
             tbody.innerHTML = '';
             jenisKasList.forEach((k, index) => {
-                let actionTd = isAdminLoggedIn ? `<td class="py-2.5 px-3 text-right"><button onclick="editJenisKas(${index})" class="text-blue-600 font-bold bg-blue-50 px-2 py-0.5 rounded">Edit</button></td>` : '';
+                let actionTd = isAdminLoggedIn ? `<td class="py-2.5 px-3 text-right space-x-1"><button onclick="editJenisKas(${index})" class="text-blue-600 font-bold bg-blue-50 px-2 py-1 rounded">Edit</button><button onclick="hapusJenisKas(${index})" class="text-red-600 font-bold bg-red-50 px-2 py-1 rounded">Hapus</button></td>` : '';
                 tbody.innerHTML += `<tr class="border-b hover:bg-slate-50"><td class="py-2.5 px-3 font-bold">${k}</td>${actionTd}</tr>`;
             });
         }
@@ -1196,6 +1213,17 @@
             document.getElementById('edit-index-kas').value = index;
             document.getElementById('input-nama-kas').value = jenisKasList[index];
             document.getElementById('btn-simpan-kas').innerText = "💾 Perbarui Kas";
+        }
+        function hapusJenisKas(index) {
+            if(!isAdminLoggedIn) return;
+            const nama = jenisKasList[index];
+            if(!confirm(`Hapus jenis kas "${nama}"? Tagihan terkait tidak akan terhapus tapi tidak tampil di filter.`)) return;
+            jenisKasList.splice(index, 1);
+            simpanLocalState();
+            refreshDropdowns();
+            renderJenisKasList();
+            syncJenisKasKeCloud();
+            alert(`Jenis kas "${nama}" dihapus & synced ke Cloud`);
         }
 
         function resetFormWarga() {
@@ -1873,5 +1901,5 @@
             doc.save(namaFile); tutupModalPdf();
         }
     </script>
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a26d228b0fa9e785',t:'MTc4NjAwOTgwMQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a26d51f41815ba3d',t:'MTc4NjAxMTc0Mw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
