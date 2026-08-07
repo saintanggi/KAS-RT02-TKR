@@ -62,8 +62,19 @@
 
     <!-- DASHBOARD -->
     <section id="sec-dashboard" class="p-4 md:p-6 space-y-4">
-      <div class="flex justify-between items-center">
-        <div><h1 class="text-xl font-bold">Dashboard Kas RT 02</h1><p class="text-xs text-slate-500">TKR RT.02 RW.07 · <span id="dashBulan">Agustus 2026</span></p></div>
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
+        <div><h1 class="text-xl font-bold">Dashboard Kas RT 02</h1><p class="text-xs text-slate-500" id="dashSub">TKR RT.02 RW.07 · Agustus 2026</p></div>
+        <div class="flex items-center gap-2">
+          <span class="text-xs font-bold text-slate-500">Jenis Kas:</span>
+          <select id="dashJenisKas" onchange="render()" class="bg-white border border-slate-200 text-sm font-bold px-3 py-2 rounded-xl"></select>
+        </div>
+      </div>
+      <div class="flex justify-end">
+        <div class="flex gap-2">
+          <button onclick="bukaMasuk()" class="adminOnly hidden bg-emerald-600 text-white text-xs font-bold px-4 py-2 rounded-full">+ Transaksi Baru</button>
+          <button onclick="nav('iuran')" class="bg-white border text-xs font-bold px-4 py-2 rounded-full">Cek Iuran</button>
+        </div>
+      </div>
         <div class="flex gap-2">
           <button onclick="bukaMasuk()" class="adminOnly hidden bg-emerald-600 text-white text-xs font-bold px-4 py-2 rounded-full">+ Transaksi Baru</button>
           <button onclick="nav('iuran')" class="bg-white border text-xs font-bold px-4 py-2 rounded-full">Cek Iuran</button>
@@ -122,11 +133,20 @@
 
     <!-- WARGA -->
     <section id="sec-warga" class="hidden p-4 md:p-6 space-y-4">
-      <div class="flex justify-between items-center"><h1 class="text-xl font-bold">Data Warga</h1><button onclick="bukaWarga()" class="adminOnly hidden bg-slate-900 text-white text-sm font-bold px-4 py-2 rounded-full">+ Tambah Warga</button></div>
-      <div class="bg-white border rounded-2xl p-4">
-        <input id="cariWarga" oninput="renderWarga()" placeholder="🔍 Cari nama, blok..." class="w-full border bg-slate-50 p-2.5 rounded-xl text-sm mb-3">
-        <div class="overflow-auto"><table class="w-full text-sm"><thead class="text-xs text-slate-500 border-b"><tr><th class="text-left py-2">Nama / Blok</th><th>HP</th><th>Status</th><th class="text-right">Nominal</th><th class="text-center">Aksi</th></tr></thead><tbody id="tblWarga"></tbody></table></div>
+      <div class="flex justify-between items-center">
+        <div><h1 class="text-xl font-bold">Data Warga</h1><p class="text-xs text-slate-500" id="wargaSub">Kelola daftar warga anggota RT - 0 aktif / 0 total</p></div>
+        <button onclick="bukaWarga()" class="adminOnly hidden bg-emerald-600 text-white text-sm font-bold px-4 py-2 rounded-full">+ Tambah Warga</button>
       </div>
+      <div class="bg-white border rounded-2xl p-4 flex flex-col md:flex-row gap-3">
+        <div class="flex-1 relative">
+          <span class="absolute left-3 top-2.5 text-slate-400">🔍</span>
+          <input id="cariWarga" oninput="renderWarga()" placeholder="Cari nama, no. rumah, atau telepon..." class="w-full border bg-slate-50 pl-9 p-2.5 rounded-xl text-sm">
+        </div>
+        <select id="filterStatusWarga" onchange="renderWarga()" class="border bg-white text-sm p-2.5 rounded-xl font-medium">
+          <option value="SEMUA">Semua status</option><option value="aktif">Aktif</option><option value="nonaktif">Nonaktif</option>
+        </select>
+      </div>
+      <div id="gridWarga" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"></div>
     </section>
 
     <!-- LAPORAN -->
@@ -208,8 +228,9 @@ function buka(id){ document.getElementById(id).classList.remove('hidden'); docum
 function tutup(id){ document.getElementById(id).classList.add('hidden'); }
 function handleLogin(){ if(isAdmin){ if(confirm('Logout?')){ sessionStorage.removeItem('rt_is_admin'); location.reload(); }} else buka('modalLogin'); }
 function prosesLogin(){ const u=document.getElementById('loginUser').value.trim(), p=document.getElementById('loginPass').value.trim(); if(u==='admin'&&p===ADMIN_PASS){ sessionStorage.setItem('rt_is_admin','true'); location.reload(); } else alert('Salah'); }
-function refreshKas(){ const els=[document.getElementById('wJenisKas'),document.getElementById('trxKas'),document.getElementById('genKas'),document.getElementById('filterKas')]; els.forEach(el=>{ if(!el) return; el.innerHTML=''; jenisKasList.forEach(k=> el.innerHTML+=`<option>${k}</option>`); }); // filterKas add SEMUA
+function refreshKas(){ const els=[document.getElementById('wJenisKas'),document.getElementById('trxKas'),document.getElementById('genKas'),document.getElementById('filterKas'),document.getElementById('dashJenisKas')]; els.forEach(el=>{ if(!el) return; el.innerHTML=''; jenisKasList.forEach(k=> el.innerHTML+=`<option>${k}</option>`); }); // filterKas add SEMUA
   const f=document.getElementById('filterKas'); if(f && !f.innerHTML.includes('SEMUA')) f.innerHTML = '<option value="SEMUA">SEMUA</option>' + f.innerHTML;
+  const df=document.getElementById('dashJenisKas'); if(df && df.options.length===0){ df.innerHTML='<option value="SEMUA">SEMUA Jenis Kas</option>'; jenisKasList.forEach(k=> df.innerHTML+=`<option>${k}</option>`); } else if(df && !df.innerHTML.includes('SEMUA')) df.innerHTML='<option value="SEMUA">SEMUA Jenis Kas</option>'+df.innerHTML;
 }
 async function load(){
   const dKas = await db.collection("config").doc("jenisKas").get(); if(dKas.exists) jenisKasList=dKas.data().list;
@@ -226,10 +247,15 @@ async function load(){
   document.querySelectorAll('.adminOnly').forEach(e=> e.classList.toggle('hidden', !isAdmin));
 }
 function render(){
-  // dashboard stats
+  // sync dashJenisKas value
+  const dashKasEl=document.getElementById('dashJenisKas');
+  let dashKas = dashKasEl ? dashKasEl.value : 'SEMUA';
+  if(!dashKas) dashKas='SEMUA';
+  // dashboard stats filtered by dashKas
   const bulan="2026-08";
   let masukB=0, keluarB=0, totM=0, totK=0;
-  transaksi.forEach(t=>{ const n=Number(t.nominal)||0; if(t.tipe==="MASUK") totM+=n; else totK+=n; if(t.tanggal && t.tanggal.startsWith(bulan)){ if(t.tipe==="MASUK") masukB+=n; else keluarB+=n; } });
+  const isDashAll = dashKas==="SEMUA";
+  transaksi.forEach(t=>{ if(!isDashAll && t.jenisKas!==dashKas) return; const n=Number(t.nominal)||0; if(t.tipe==="MASUK") totM+=n; else totK+=n; if(t.tanggal && t.tanggal.startsWith(bulan)){ if(t.tipe==="MASUK") masukB+=n; else keluarB+=n; } });
   document.getElementById('dSaldo').innerText="Rp "+(totM-totK).toLocaleString('id-ID');
   document.getElementById('dMasuk').innerText="Rp "+masukB.toLocaleString('id-ID');
   document.getElementById('dKeluar').innerText="Rp "+keluarB.toLocaleString('id-ID');
@@ -238,7 +264,7 @@ function render(){
   document.getElementById('lSaldo').innerText="Rp "+(totM-totK).toLocaleString('id-ID');
   const aktif=warga.filter(w=>w.status==="Tetap"||w.status==="Kontrak").length;
   document.getElementById('dWarga').innerText=aktif;
-  const agustus = tagihan.filter(t=>t.periode==="Agustus 2026");
+  const agustus = tagihan.filter(t=>t.periode==="Agustus 2026" && (isDashAll || t.jenisKas===dashKas));
   const lunas = agustus.filter(t=>t.status==="LUNAS").length;
   const total=agustus.length;
   const persen= total? Math.round(lunas/total*100):0;
@@ -251,7 +277,8 @@ function render(){
   document.getElementById('dNetoDetail').innerText=`Pemasukan Rp ${masukB.toLocaleString('id-ID')} - Pengeluaran Rp ${keluarB.toLocaleString('id-ID')}`;
   const belum = agustus.filter(t=>t.status==="BELUM").slice(0,100);
   document.getElementById('dListBelum').innerHTML = belum.map(t=>`<div class="flex justify-between py-2 border-b last:border-0"><div><p class="font-semibold text-sm">${t.nama}</p><p class="text-xs text-slate-400">Blok ${t.blok}</p></div><span class="text-xs bg-amber-50 text-amber-700 border border-amber-200 px-2 py-1 rounded-full h-fit">Belum</span></div>`).join('') || '<p class="text-xs text-slate-400">Semua lunas 🎉</p>';
-  const sorted=[...transaksi].sort((a,b)=>(b.tanggal||"").localeCompare(a.tanggal||"")).slice(0,50);
+  let filteredTrx = isDashAll ? [...transaksi] : transaksi.filter(x=>x.jenisKas===dashKas);
+  const sorted=[...filteredTrx].sort((a,b)=>(b.tanggal||"").localeCompare(a.tanggal||"")).slice(0,50);
   document.getElementById('dTransaksi').innerHTML = sorted.map(t=>`<div class="flex justify-between py-3 border-b last:border-0"><div><p class="text-sm font-medium">${t.keterangan}</p><p class="text-xs text-slate-400">${t.tanggal} · ${t.kategori}</p></div><span class="text-sm font-bold ${t.tipe==="MASUK"?'text-emerald-600':'text-rose-600'}">${t.tipe==="MASUK"?'+':'-'}Rp ${Number(t.nominal).toLocaleString('id-ID')}</span></div>`).join('') || '<p class="text-xs text-slate-400">Belum ada</p>';
   renderTransaksi(); renderIuran(); renderWarga(); renderKas2();
 }
@@ -274,8 +301,35 @@ function renderIuran(){
 function pageIuran(d){ page+=d; if(page<1) page=1; renderIuran(); }
 function renderWarga(){
   const q=document.getElementById('cariWarga').value.toLowerCase();
-  let filtered=warga; if(q) filtered=warga.filter(w=> w.nama.toLowerCase().includes(q) || w.blok.toLowerCase().includes(q));
-  document.getElementById('tblWarga').innerHTML = filtered.map(w=>`<tr class="border-b"><td class="py-2"><b>${w.nama}</b><br><span class="text-xs text-slate-400">Blok ${w.blok}</span></td><td>${w.hp}</td><td><span class="text-xs bg-slate-100 px-2 py-1 rounded-full">${w.status}</span></td><td class="text-right">Rp ${Number(w.nominal).toLocaleString('id-ID')}</td><td class="text-center"><button onclick="editWarga('${w.id}')" class="text-xs text-blue-600">Edit</button> <button onclick="hapusWarga('${w.id}')" class="text-xs text-rose-600">Hapus</button></td></tr>`).join('');
+  const f=document.getElementById('filterStatusWarga').value;
+  let filtered=warga;
+  if(q) filtered=filtered.filter(w=> w.nama.toLowerCase().includes(q) || w.blok.toLowerCase().includes(q) || w.hp.toLowerCase().includes(q));
+  if(f==='aktif') filtered=filtered.filter(w=> w.status==='Tetap'||w.status==='Kontrak');
+  if(f==='nonaktif') filtered=filtered.filter(w=> !(w.status==='Tetap'||w.status==='Kontrak'));
+  const aktif = warga.filter(w=>w.status==='Tetap'||w.status==='Kontrak').length;
+  document.getElementById('wargaSub').innerText = `Kelola daftar warga anggota RT - ${aktif} aktif / ${warga.length} total`;
+  document.getElementById('gridWarga').innerHTML = filtered.map((w,i)=>{
+    const isAktif = w.status==='Tetap'||w.status==='Kontrak';
+    const num = String(i+1).padStart(2,'0');
+    // bergabung date from id timestamp if possible
+    let tgl=""; try{ const d=new Date(Number(w.id)); if(!isNaN(d.getTime())) tgl=`Bergabung ${d.toLocaleDateString('id-ID',{day:'2-digit', month:'short', year:'numeric'})}`; }catch(e){}
+    if(!tgl) tgl=`Blok ${w.blok} · ${w.jenisKas||''}`;
+    return `<div class="bg-white border rounded-2xl p-4 flex flex-col">
+      <div class="flex gap-3">
+        <div class="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold text-xs">${num}</div>
+        <div class="flex-1">
+          <p class="font-bold text-sm">${w.nama}</p>
+          <p class="text-xs text-slate-500">${tgl}</p>
+        </div>
+        <span class="text-[11px] font-bold px-2 py-1 rounded-full h-fit ${isAktif?'bg-emerald-50 text-emerald-700':'bg-slate-100 text-slate-500'}">${isAktif?'aktif':'nonaktif'}</span>
+      </div>
+      <p class="text-xs text-slate-500 mt-3 flex items-center gap-1">📞 ${w.hp}</p>
+      <div class="flex gap-2 mt-3">
+        <button onclick="editWarga('${w.id}')" class="flex-1 border border-slate-200 py-2 rounded-xl text-xs font-bold bg-white">✎ Edit</button>
+        <button onclick="hapusWarga('${w.id}')" class="flex-1 border border-rose-100 bg-rose-50 text-rose-600 py-2 rounded-xl text-xs font-bold">🗑 Hapus</button>
+      </div>
+    </div>`;
+  }).join('') || '<p class="col-span-3 text-center text-slate-400 py-8">Tidak ada warga</p>';
 }
 function renderKas2(){ document.getElementById('listKas2').innerHTML = jenisKasList.map((k,i)=>`<div class="flex justify-between py-2"><span>${k}</span><button onclick="hapusKas2(${i})" class="text-rose-600 text-xs">Hapus</button></div>`).join(''); }
 function bukaWarga(){ if(!isAdmin) return alert('Admin only'); buka('modalWarga'); }
