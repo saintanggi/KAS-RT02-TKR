@@ -62,19 +62,16 @@
 
     <!-- DASHBOARD -->
     <section id="sec-dashboard" class="p-4 md:p-6 space-y-4">
-      <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
+      <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
         <div><h1 class="text-xl font-bold">Dashboard Kas RT 02</h1><p class="text-xs text-slate-500" id="dashSub">TKR RT.02 RW.07 · Agustus 2026</p></div>
-        <div class="flex items-center gap-2">
+        <div class="flex flex-wrap items-center gap-2">
           <span class="text-xs font-bold text-slate-500">Jenis Kas:</span>
-          <select id="dashJenisKas" onchange="render()" class="bg-white border border-slate-200 text-sm font-bold px-3 py-2 rounded-xl"></select>
-        </div>
-      </div>
-      <div class="flex justify-end">
-        <div class="flex gap-2">
+          <select id="dashJenisKas" onchange="render()" class="bg-white border border-slate-200 text-sm font-bold px-3 py-2 rounded-xl min-w-[150px]"></select>
           <button onclick="bukaMasuk()" class="adminOnly hidden bg-emerald-600 text-white text-xs font-bold px-4 py-2 rounded-full">+ Transaksi Baru</button>
           <button onclick="nav('iuran')" class="bg-white border text-xs font-bold px-4 py-2 rounded-full">Cek Iuran</button>
         </div>
       </div>
+
         <div class="flex gap-2">
           <button onclick="bukaMasuk()" class="adminOnly hidden bg-emerald-600 text-white text-xs font-bold px-4 py-2 rounded-full">+ Transaksi Baru</button>
           <button onclick="nav('iuran')" class="bg-white border text-xs font-bold px-4 py-2 rounded-full">Cek Iuran</button>
