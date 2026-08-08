@@ -49,7 +49,7 @@ tailwind.config = {
         <i class="fa-solid fa-house-chimney"></i>
       </div>
       <div>
-        <h1 class="font-fredoka font-bold text-[22px] leading-none tracking-tight">KAS RT<span class="text-[#FF6B6B]">.</span></h1>
+        <h1 class="font-fredoka font-bold text-[22px] leading-none tracking-tight">KAS RT<span class="text-[#FF6B6B]">.</span><span class="ml-2 text-[10px] bg-emerald-500 text-white px-2 py-1 rounded-full">v3.1 Firebase</span></h1>
         <p class="text-[11px] font-extrabold tracking-widest text-[#FF8E53] uppercase">TKR RT.02 / RW 07 • Mekarjaya</p>
       </div>
       <span class="hidden md:inline-flex ml-4 bg-[#06D6A0] text-white text-xs font-black px-3 py-1.5 rounded-full shadow-md">● ONLINE</span>
@@ -138,7 +138,7 @@ tailwind.config = {
             <div class="flex flex-wrap items-start justify-between gap-4">
               <div>
                 <p class="inline-flex items-center gap-2 bg-white/20 backdrop-blur px-3 py-1.5 rounded-full text-xs font-black tracking-widest">💰 SALDO KAS BERSAMA</p>
-                <h2 class="font-poppins font-extrabold text-[36px] sm:text-[48px] leading-none mt-3 tracking-tight" id="saldoDisplay">Rp 14.850.000</h2>
+                <h2 class="font-poppins font-extrabold text-[36px] sm:text-[48px] leading-none mt-3 tracking-tight" id="saldoDisplay">⏳ Loading Firebase...</h2>
                 <p class="font-bold opacity-90 mt-1 flex items-center gap-2 text-sm"><span class="bg-white text-[#FF6B6B] px-2 py-0.5 rounded-full text-xs font-black">↑ 8.2%</span> dari bulan lalu • Update 8 Agu 2026</p>
               </div>
               <div class="bg-white rounded-2xl p-3 shadow-xl rotate-3 hidden sm:block">
@@ -881,5 +881,5 @@ document.getElementById('globalSearch')?.addEventListener('input', (e)=>{
 document.querySelector('input[name="tanggal"]').valueAsDate = new Date();
 loadFirebase();
 </script>
-</body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a27b831b5adf70b5',t:'MTc4NjE2MDU1Nw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
