@@ -53,7 +53,7 @@
   </aside>
 
   <!-- MAIN -->
-  <div class="flex-1 md:ml-60">
+  <div class="flex-1 md:ml-60 min-w-0">
     <!-- TOPBAR mobile -->
     <div class="md:hidden bg-white border-b p-3 flex justify-between items-center sticky top-0 z-30">
       <div class="font-bold text-sm">Kas RT Digital</div>
@@ -380,5 +380,5 @@ function exportExcel(){ const wb=XLSX.utils.book_new(); XLSX.utils.book_append_s
 function downloadPdf(tipe){ alert('Gunakan Export Excel untuk '+tipe); }
 window.onload=()=>{ refreshKas(); load(); nav('dashboard'); };
 </script>
-</body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a27b1aebdce9e0ab',t:'MTc4NjE1NjI4OQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
