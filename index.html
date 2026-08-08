@@ -523,75 +523,37 @@ tailwind.config = {
 
 <script>
 // Data
-// Firebase - data asli Anda (kas-rt02-tkr)
+let warga = [];
+let transaksi = [];
+let tagihanFB = [];
+let jenisKasList = ["Kas Bulanan","Kas Keamanan","Kas Sosial / Kematian","KAS HUT RI"];
+
 const firebaseConfig = { apiKey:"AIzaSyBbby_z2WVw02-1I9R-CPsQBCKzunLdROc", authDomain:"kas-rt02-tkr.firebaseapp.com", projectId:"kas-rt02-tkr", storageBucket:"kas-rt02-tkr.firebasestorage.app", messagingSenderId:"425411747451", appId:"1:425411747451:web:e5e7a8dcfd7256af28ccde" };
 if(!firebase.apps.length) firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
-let tagihanFB = [];
-let jenisKasList = ["Kas Bulanan","Kas Keamanan","Kas Sosial / Kematian","KAS HUT RI"];
 
 async function loadFirebase(){
   try{
     const snapW = await db.collection("warga").get();
     const listW=[]; snapW.forEach(d=>{ const w=d.data(); listW.push({
-      id: w.id,
-      nama: w.nama,
-      rumah: w.blok,
-      blok: (w.blok||'').replace(/[^A-Za-z]/g,'').charAt(0) || (w.jenisKas||'C').charAt(0),
-      hp: w.hp||'081234567800',
-      status: (w.status==='Tetap'||w.status==='Kontrak') ? 'lunas' : 'menunggak', // mapping, will override by tagihan
-      warna: ["from-orange-400 to-pink-500","from-emerald-400 to-teal-500","from-violet-400 to-purple-500","from-blue-400 to-cyan-500","from-amber-400 to-orange-500"][Math.floor(Math.random()*5)],
-      nominal: w.nominal,
-      orig: w
+      id: w.id, nama: w.nama, rumah: w.blok, blok: (w.blok||'').replace(/[^A-Za-z]/g,'').charAt(0)||'C', hp: w.hp||'081234567800',
+      status: 'menunggak', warna: ["from-orange-400 to-pink-500","from-emerald-400 to-teal-500","from-violet-400 to-purple-500","from-blue-400 to-cyan-500","from-amber-400 to-orange-500"][Math.floor(Math.random()*5)],
+      nominal: w.nominal, orig: w
     }); });
-    // tagihan for status: if any tagihan Agustus BELUM then menunggak
     const snapT = await db.collection("tagihan").get();
     tagihanFB=[]; snapT.forEach(d=> tagihanFB.push(d.data()));
-    const belumSet = new Set(tagihanFB.filter(t=>t.periode==="Agustus 2026" && t.status==="BELUM").map(t=>String(t.wargaId)));
-    listW.forEach(w=>{ if(belumSet.has(String(w.id))) w.status='menunggak'; else if(tagihanFB.some(t=>String(t.wargaId)===String(w.id))) w.status='lunas'; });
+    const belumSet = new Set(tagihanFB.filter(x=>x.periode==="Agustus 2026" && x.status==="BELUM").map(x=>String(x.wargaId)));
+    listW.forEach(w=>{ if(belumSet.has(String(w.id))) w.status='menunggak'; else if(tagihanFB.some(x=>String(x.wargaId)===String(w.id))) w.status='lunas'; else w.status='menunggak'; });
     if(listW.length) warga = listW;
     const snapTr = await db.collection("transaksi").get();
-    const listTr=[]; snapTr.forEach(d=>{ const t=d.data(); listTr.push({id:t.id, tanggal:t.tanggal, kategori:t.kategori||t.jenisKas||"Lainnya", deskripsi:t.keterangan, tipe:(t.tipe==="MASUK"?"masuk":"keluar"), jumlah:Number(t.nominal)||0}); });
+    const listTr=[]; snapTr.forEach(d=>{ const x=d.data(); listTr.push({id:x.id, tanggal:x.tanggal, kategori:x.kategori||x.jenisKas||"Lainnya", deskripsi:x.keterangan, tipe:(x.tipe==="MASUK"?"masuk":"keluar"), jumlah:Number(x.nominal)||0}); });
     if(listTr.length) transaksi = listTr.sort((a,b)=> b.tanggal.localeCompare(a.tanggal));
-    // jenisKas
     const docKas = await db.collection("config").doc("jenisKas").get();
     if(docKas.exists) jenisKasList = docKas.data().list;
-    console.log("Firebase loaded", warga.length, transaksi.length, tagihanFB.length);
+    console.log("Firebase OK", warga.length, transaksi.length);
     loadFirebase();
-// renderDashboard will be called after Firebase load
-  }catch(e){ console.error("Firebase load gagal", e); }
+  }catch(e){ console.error(e); loadFirebase(); }
 }
-
-// Override actions to write to Firebase (keep local + cloud)
-const _oldBayar = null;
-
-let warga = [
-  {id:1, nama:"Budi Santoso", rumah:"A-01", blok:"A", hp:"081234567801", status:"lunas", warna:"from-orange-400 to-pink-500"},
-  {id:2, nama:"Siti Rahayu", rumah:"A-07", blok:"A", hp:"081234567802", status:"menunggak", warna:"from-purple-400 to-indigo-500"},
-  {id:3, nama:"Agus Wijaya", rumah:"B-03", blok:"B", hp:"081234567803", status:"lunas", warna:"from-emerald-400 to-teal-500"},
-  {id:4, nama:"Dewi Lestari", rumah:"B-12", blok:"B", hp:"081234567804", status:"menunggak", warna:"from-rose-400 to-orange-400"},
-  {id:5, nama:"Joko Prasetyo", rumah:"A-15", blok:"A", hp:"081234567805", status:"lunas", warna:"from-blue-400 to-cyan-500"},
-  {id:6, nama:"Rina Marlina", rumah:"C-04", blok:"C", hp:"081234567806", status:"lunas", warna:"from-amber-400 to-orange-500"},
-  {id:7, nama:"Hendra Gunawan", rumah:"C-09", blok:"C", hp:"081234567807", status:"menunggak", warna:"from-violet-400 to-purple-500"},
-  {id:8, nama:"Maya Sari", rumah:"B-08", blok:"B", hp:"081234567808", status:"lunas", warna:"from-pink-400 to-rose-500"},
-  {id:9, nama:"Eko Saputra", rumah:"A-22", blok:"A", hp:"081234567809", status:"menunggak", warna:"from-teal-400 to-emerald-500"},
-  {id:10, nama:"Lilis Handayani", rumah:"C-11", blok:"C", hp:"081234567810", status:"lunas", warna:"from-indigo-400 to-blue-500"},
-  {id:11, nama:"Slamet Riyadi", rumah:"B-15", blok:"B", hp:"081234567811", status:"lunas", warna:"from-orange-400 to-amber-500"},
-  {id:12, nama:"Yuni Astuti", rumah:"A-10", blok:"A", hp:"081234567812", status:"menunggak", warna:"from-fuchsia-400 to-pink-500"},
-];
-
-let transaksi = [
-  {id:1, tanggal:"2026-08-07", kategori:"Iuran Warga", deskripsi:"Iuran Agustus - A01 Budi Santoso", tipe:"masuk", jumlah:50000},
-  {id:2, tanggal:"2026-08-06", kategori:"Iuran Warga", deskripsi:"Iuran Agustus - B03 Agus Wijaya", tipe:"masuk", jumlah:50000},
-  {id:3, tanggal:"2026-08-05", kategori:"Keamanan", deskripsi:"Gaji Satpam RT (Agustus)", tipe:"keluar", jumlah:800000},
-  {id:4, tanggal:"2026-08-04", kategori:"Kebersihan", deskripsi:"Iuran Kebersihan & Sampah", tipe:"keluar", jumlah:350000},
-  {id:5, tanggal:"2026-08-03", kategori:"Iuran Warga", deskripsi:"Iuran Agustus - C04 Rina Marlina", tipe:"masuk", jumlah:50000},
-  {id:6, tanggal:"2026-08-02", kategori:"Acara", deskripsi:"Beli Umbul-umbul Agustusan", tipe:"keluar", jumlah:275000},
-  {id:7, tanggal:"2026-08-01", kategori:"Sumbangan", deskripsi:"Sumbangan Warga untuk Masjid", tipe:"masuk", jumlah:300000},
-  {id:8, tanggal:"2026-07-28", kategori:"Perbaikan", deskripsi:"Perbaikan Lampu Jalan Blok B", tipe:"keluar", jumlah:425000},
-  {id:9, tanggal:"2026-07-20", kategori:"Iuran Warga", deskripsi:"Iuran Juli - Kolektif 20 KK", tipe:"masuk", jumlah:1000000},
-  {id:10, tanggal:"2026-07-15", kategori:"Acara", deskripsi:"Konsumsi Rapat Rutin", tipe:"keluar", jumlah:180000},
-];
 
 const bulanNames = ["Jan","Feb","Mar","Apr","Mei","Jun","Jul","Agu"];
 
@@ -819,7 +781,6 @@ function renderLaporan(){
 }
 
 // Actions
-async function _syncWargaToFB(w){ try{ await db.collection("warga").doc(String(w.id)).set({id:String(w.id), nama:w.nama, blok:w.rumah, hp:w.hp, status: (w.status==='lunas'?'Tetap':'Rumah Kosong'), nominal:50000, jenisKas:"Kas Bulanan"}); }catch(e){} }
 function bayarIuran(id){
   const w = warga.find(x=>x.id===id);
   if(!w) return;
@@ -832,16 +793,12 @@ function bayarIuran(id){
     showToast(`⚠️ ${w.nama} ditandai menunggak`);
   }
   loadFirebase();
-// renderDashboard will be called after Firebase load
 }
-async function hapusWargaFB(id){ try{ await db.collection('warga').doc(String(id)).delete(); }catch(e){} }
 function hapusWarga(id){
-  if(confirm('Hapus warga ini?')){ warga = warga.filter(w=>w.id!==id); loadFirebase();
-// renderDashboard will be called after Firebase load showToast('Warga dihapus 🗑️'); }
+  if(confirm('Hapus warga ini?')){ warga = warga.filter(w=>w.id!==id); loadFirebase(); showToast('Warga dihapus 🗑️'); }
 }
 function hapusTransaksi(id){
-  if(confirm('Hapus transaksi ini?')){ transaksi = transaksi.filter(t=>t.id!==id); loadFirebase();
-// renderDashboard will be called after Firebase load showToast('Transaksi dihapus'); }
+  if(confirm('Hapus transaksi ini?')){ transaksi = transaksi.filter(t=>t.id!==id); loadFirebase(); showToast('Transaksi dihapus'); }
 }
 function broadcastWA(){
   const list = warga.filter(w=>w.status==='menunggak').map(w=>w.nama).join(', ');
@@ -852,14 +809,12 @@ function generateIuran(){
   const nunggak = warga.filter(w=>w.status==='menunggak').length;
   showToast(`📋 Tagihan berhasil digenerate untuk ${warga.length} warga!`);
   loadFirebase();
-// renderDashboard will be called after Firebase load
 }
 function tandaiSemuaLunas(){
   let count=0;
   warga.forEach(w=>{ if(w.status==='menunggak'){ w.status='lunas'; count++; transaksi.unshift({id:Date.now()+Math.random(), tanggal:new Date().toISOString().slice(0,10), kategori:"Iuran Warga", deskripsi:`Iuran Agustus - ${w.rumah} ${w.nama}`, tipe:"masuk", jumlah:50000}); }});
   if(count===0) return showToast('Semua sudah lunas! ✨');
   loadFirebase();
-// renderDashboard will be called after Firebase load
   showToast(`🎉 ${count} warga ditandai lunas sekaligus!`);
 }
 function exportCSV(){
@@ -887,7 +842,6 @@ document.getElementById('formTransaksi').addEventListener('submit', (e)=>{
   // keep default radio
   e.target.querySelector('input[value="masuk"]').checked=true;
   loadFirebase();
-// renderDashboard will be called after Firebase load
   showToast(tipe==='masuk' ? '💰 Pemasukan tercatat!' : '💸 Pengeluaran tercatat!');
 });
 
@@ -904,7 +858,6 @@ document.getElementById('formWarga').addEventListener('submit', (e)=>{
   closeModal('modalWarga');
   e.target.reset();
   loadFirebase();
-// renderDashboard will be called after Firebase load
   showToast(`👋 Selamat datang, ${nama}!`);
 });
 
@@ -927,7 +880,6 @@ document.getElementById('globalSearch')?.addEventListener('input', (e)=>{
 // Init
 document.querySelector('input[name="tanggal"]').valueAsDate = new Date();
 loadFirebase();
-// renderDashboard will be called after Firebase load
 </script>
 </body>
 </html>
