@@ -15,7 +15,7 @@
 <body class="text-slate-800 text-sm">
 <div class="flex min-h-screen">
   <!-- SIDEBAR -->
-  <aside id="sidebar" class="w-60 bg-white border-r border-slate-200 fixed left-0 top-0 h-screen flex-col hidden md:flex z-40">
+  <aside id="sidebar" class="w-[220px] bg-white border-r border-slate-200 flex-col hidden md:flex shrink-0 sticky top-0 h-screen">
     <div class="p-4 border-b border-slate-100 flex items-center gap-2">
       <div class="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center text-white">🏠</div>
       <div>
@@ -53,7 +53,7 @@
   </aside>
 
   <!-- MAIN -->
-  <div class="flex-1 md:ml-60 min-w-0 w-full bg-[#f8fafc]">
+  <div class="flex-1 min-w-0 bg-[#f8fafc]">
     <!-- TOPBAR mobile -->
     <div class="md:hidden bg-white border-b p-3 flex justify-between items-center sticky top-0 z-30">
       <div class="font-bold text-sm">Kas RT Digital</div>
@@ -61,7 +61,7 @@
     </div>
 
         <!-- DASHBOARD -->
-    <section id="sec-dashboard" class="p-6 space-y-5">
+    <section id="sec-dashboard" class="p-4 md:p-5 space-y-4">
       <!-- Header -->
       <div class="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
         <div>
