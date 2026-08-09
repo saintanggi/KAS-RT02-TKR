@@ -1,2062 +1,384 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard Kas TKR RT.02 - Firebase Cloud</title>
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Google Fonts: Inter -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <!-- Library jsPDF & html2canvas -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <!-- Firebase SDK (Compat - paling mudah untuk Kas RT) -->
-    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-    <!-- SheetJS untuk Export Excel -->
-    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-    <style>
-        body { 
-            font-family: 'Inter', sans-serif; 
-            background-image: linear-gradient(rgba(11, 34, 57, 0.65), rgba(27, 77, 62, 0.65)), url('https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=1920&q=80');
-            background-size: cover;
-            background-position: center;
-            background-attachment: fixed;
-        }
-        .bg-wallpaper-overlay {
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            min-height: 100vh;
-        }
-        .custom-scroll::-webkit-scrollbar { width: 5px; height: 5px; }
-        .custom-scroll::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 10px; }
-        .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-        .modal-overlay { transition: opacity 0.3s ease-in-out; }
-        .modal-content { transition: transform 0.3s ease-in-out, opacity 0.3s ease-in-out; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kas RT Digital - TKR RT.02</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>body{font-family:'DM Sans',sans-serif;background:#f8fafc} .nav-active{background:#059669;color:white!important} .nav-active svg{color:white!important}</style>
 </head>
-<body class="min-h-screen text-slate-800 text-sm">
+<body class="text-slate-800 text-sm">
+<div class="flex min-h-screen">
+  <!-- SIDEBAR -->
+  <aside id="sidebar" class="w-[220px] bg-white border-r border-slate-200 flex-col hidden md:flex shrink-0 sticky top-0 h-screen">
+    <div class="p-4 border-b border-slate-100 flex items-center gap-2">
+      <div class="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center text-white">🏠</div>
+      <div>
+        <p class="font-bold text-xs leading-none" id="sbNamaRT">Kas RT Digital</p>
+        <p class="text-[11px] text-slate-500" id="sbAlamatRT">TKR RT.02 / RW 07</p>
+      </div>
+    </div>
+    <nav class="flex-1 p-3 space-y-1 overflow-y-auto">
+      <button onclick="nav('dashboard')" id="nav-dashboard" class="nav-active w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold">
+        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><path stroke-width="2" d="M9 22V12h6v10"/></svg> Dashboard
+      </button>
+      <button onclick="nav('transaksi')" id="nav-transaksi" class="w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-50">
+        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path stroke-width="2" d="M14 2v6h6"/><path stroke-width="2" d="M10 13H8m8 0h-2M10 17H8m8 0h-2"/></svg> Transaksi
+      </button>
+      <button onclick="nav('iuran')" id="nav-iuran" class="w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-50">
+        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2" stroke-width="2"/><path stroke-width="2" d="M2 10h20"/></svg> Iuran Warga
+      </button>
+      <button onclick="nav('warga')" id="nav-warga" class="w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-50">
+        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4" stroke-width="2"/><path stroke-width="2" d="M23 21v-2a4 4 0 00-3-3.87"/><path stroke-width="2" d="M16 3.13a4 4 0 010 7.75"/></svg> Data Warga
+      </button>
+      <button onclick="nav('laporan')" id="nav-laporan" class="w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-50">
+        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path stroke-width="2" d="M14 2v6h6"/><line x1="16" y1="13" x2="8" y2="13" stroke-width="2"/><line x1="16" y1="17" x2="8" y2="17" stroke-width="2"/></svg> Laporan
+      </button>
+      <button onclick="nav('pengaturan')" id="nav-pengaturan" class="w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-50">
+        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" stroke-width="2"/><path stroke-width="2" d="M12 1v2m0 18v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2m18 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg> Pengaturan
+      </button>
+    </nav>
+    <div class="p-3 border-t border-slate-100">
+      <div class="bg-emerald-50 rounded-xl p-3 flex items-center gap-3">
+        <div class="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center text-xs font-bold">B</div>
+        <div><p class="text-xs font-bold">Bendahara</p><p class="text-[11px] text-slate-500">Admin RT.02</p></div>
+      </div>
+      <button id="btnLoginSb" onclick="handleLogin()" class="mt-2 w-full bg-slate-900 text-white text-xs font-bold py-2 rounded-xl">🔐 Login Admin</button>
+    </div>
+  </aside>
 
-    <div class="bg-wallpaper-overlay min-h-screen p-4 md:p-6">
-        <div class="max-w-7xl mx-auto flex flex-col lg:flex-row gap-5">
-            
-            <!-- ================= KIRI: AREA KONTEN UTAMA ================= -->
-            <div class="flex-1 space-y-4">
-                
-                <!-- Header Navigasi -->
-                <div class="bg-white/90 backdrop-blur-md border border-white/50 p-3.5 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.05)] flex flex-col md:flex-row justify-between items-center gap-3">
-                    <div class="flex items-center gap-2.5">
-                        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-600 to-blue-900 shadow-inner flex items-center justify-center text-white font-bold text-base">
-                            RT
-                        </div>
-                        <div>
-                            <h1 class="font-extrabold text-base leading-tight text-slate-900">TKR RT.02 RW.07</h1>
-                            <p class="text-[11px] text-slate-600 font-medium">Taman Kertamukti Residence - Warga Blok C</p>
-                        </div>
-                    </div>
-                    <div class="flex items-center gap-2 text-xs font-semibold">
-                        <span id="badge-status-mode" class="bg-blue-100 text-blue-700 px-3 py-1.5 rounded-lg font-bold">👤 Mode Warga (Public)</span>
-                        <button id="btn-login-logout" onclick="handleLoginLogoutBtn()" class="bg-slate-900 hover:bg-slate-800 text-white px-3.5 py-1.5 rounded-lg text-xs font-bold transition shadow-sm">🔐 Login Admin</button>
-                    </div>
-                </div>
-
-                <!-- MENU PILIH JENIS KAS -->
-                <div class="bg-white/90 backdrop-blur-md p-4 rounded-2xl shadow-[0_4px_15px_rgb(0,0,0,0.05)] border border-white/50 flex flex-col md:flex-row items-center justify-between gap-3">
-                    <div>
-                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Buku Kas Aktif:</span>
-                        <h2 id="judul-kas-aktif" class="text-lg font-extrabold text-blue-700">Kas Bulanan</h2>
-                    </div>
-                    <div class="w-full md:w-auto">
-                        <select id="pilih-kas-menu" onchange="gantiFilterKas(this.value)" class="w-full md:w-60 bg-slate-50 border border-slate-200 text-xs font-bold px-3 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer">
-                            <option value="Kas Bulanan">Kas Bulanan</option>
-                            <option value="Kas Keamanan">Kas Keamanan</option>
-                            <option value="Kas Sosial / Kematian">Kas Sosial / Kematian</option>
-                        </select>
-                    </div>
-                </div>
-
-                <!-- KARTU RINGKASAN SALDO -->
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    <div class="bg-white/90 backdrop-blur-md p-4 rounded-2xl shadow-[0_4px_15px_rgb(0,0,0,0.05)] border border-white/50">
-                        <p class="text-[10px] text-slate-400 font-bold tracking-wider mb-1 uppercase">Total Saldo Kas Ini</p>
-                        <h2 id="card-saldo" class="text-2xl font-extrabold text-slate-800">Rp 0</h2>
-                    </div>
-                    <div class="bg-white/90 backdrop-blur-md p-4 rounded-2xl shadow-[0_4px_15px_rgb(0,0,0,0.05)] border border-white/50">
-                        <p class="text-[10px] text-slate-400 font-bold tracking-wider mb-1 uppercase">Total Pemasukan</p>
-                        <h2 id="card-masuk" class="text-2xl font-extrabold text-blue-600">Rp 0</h2>
-                    </div>
-                    <div class="bg-white/90 backdrop-blur-md p-4 rounded-2xl shadow-[0_4px_15px_rgb(0,0,0,0.05)] border border-white/50">
-                        <p class="text-[10px] text-slate-400 font-bold tracking-wider mb-1 uppercase">Total Pengeluaran</p>
-                        <h2 id="card-keluar" class="text-2xl font-extrabold text-red-500">Rp 0</h2>
-                    </div>
-                </div>
-
-                <!-- TOMBOL DOWNLOAD PDF -->
-                <div class="bg-white/90 backdrop-blur-md p-4 rounded-2xl shadow-[0_4px_15px_rgb(0,0,0,0.05)] border border-white/50 flex flex-col md:flex-row items-center justify-between gap-3">
-                    <div class="flex items-center gap-3">
-                        <div class="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-base">📥</div>
-                        <div>
-                            <h3 class="font-bold text-slate-800 text-sm">Pusat Unduh Laporan PDF</h3>
-                            <p class="text-[11px] text-slate-500">Unduh laporan transaksi, rekap lunas, atau rekap belum bayar.</p>
-                        </div>
-                    </div>
-                    <button onclick="bukaModalPdf()" class="w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-5 py-3 rounded-xl shadow-md transition flex items-center justify-center gap-2">
-                        <span>📥 Menu Download PDF</span>
-                    </button>
-                </div>
-
-                <!-- DASHBOARD UTAMA: GENERATE TAGIHAN & PENCARIAN -->
-                <div class="bg-white/90 backdrop-blur-md p-5 rounded-2xl shadow-[0_4px_15px_rgb(0,0,0,0.05)] border border-white/50 space-y-3">
-                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
-                        <div>
-                            <h3 class="font-bold text-slate-800 text-base">Tagihan Iuran Warga Per Bulan</h3>
-                            <p class="text-[11px] text-slate-500">Dibatasi 10 data per halaman.</p>
-                        </div>
-                        <div class="flex flex-wrap items-center gap-2">
-                            <select id="pilih-bulan-filter" onchange="gantiBulanFilter()" class="bg-slate-50 border border-slate-200 text-xs font-semibold px-3 py-2 rounded-xl outline-none">
-                                <option value="Januari 2026">Januari 2026</option>
-                                <option value="Februari 2026">Februari 2026</option>
-                                <option value="Maret 2026">Maret 2026</option>
-                                <option value="April 2026">April 2026</option>
-                                <option value="Mei 2026">Mei 2026</option>
-                                <option value="Juni 2026">Juni 2026</option>
-                                <option value="Juli 2026">Juli 2026</option>
-                                <option value="Agustus 2026" selected>Agustus 2026</option>
-                                <option value="September 2026">September 2026</option>
-                                <option value="Oktober 2026">Oktober 2026</option>
-                                <option value="November 2026">November 2026</option>
-                                <option value="Desember 2026">Desember 2026</option>
-                            </select>
-                            <button id="btn-generate-warga" onclick="bukaModalGenerateTagihan()" class="hidden bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3.5 py-2 rounded-xl transition shadow-sm">
-                                ⚡ Generate
-                            </button>
-                        </div>
-                    </div>
-
-                    <div class="pt-1">
-                        <input type="text" id="cari-tagihan" oninput="gantiPencarianTagihan()" placeholder="🔍 Cari tagihan berdasarkan Nama, Alamat/Blok, Nominal, atau Status (Lunas/Belum)..." class="w-full bg-white border border-slate-200 text-xs px-3.5 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 shadow-sm">
-                    </div>
-
-                    <div class="border border-slate-100 rounded-xl overflow-hidden bg-white">
-                        <table class="min-w-full text-left text-xs">
-                            <thead class="bg-slate-50 text-slate-600 font-bold border-b border-slate-100">
-                                <tr>
-                                    <th class="py-2.5 px-3">Warga / Unit</th>
-                                    <th class="py-2.5 px-3">Jenis Kas</th>
-                                    <th class="py-2.5 px-3">Nominal</th>
-                                    <th class="py-2.5 px-3 text-center">Status</th>
-                                    <th id="th-aksi-tagihan" class="py-2.5 px-3 text-center hidden">Aksi</th>
-                                </tr>
-                            </thead>
-                            <tbody id="tabel-tagihan-warga" class="divide-y divide-slate-100"></tbody>
-                        </table>
-                    </div>
-
-                    <div class="flex flex-col md:flex-row justify-between items-center pt-1 gap-2 text-xs">
-                        <span id="info-pagination" class="text-slate-600 font-medium">Menampilkan 0-0 dari 0 data</span>
-                        <div class="flex items-center gap-2">
-                            <button onclick="gantiHalamanTagihan(-1)" id="btn-prev" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg font-bold transition disabled:opacity-40 disabled:cursor-not-allowed">← Prev</button>
-                            <span id="teks-halaman-aktif" class="font-bold text-slate-700 px-1">Hal 1/1</span>
-                            <button onclick="gantiHalamanTagihan(1)" id="btn-next" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg font-bold transition disabled:opacity-40 disabled:cursor-not-allowed">Next →</button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- TABEL RIWAYAT TRANSAKSI & PENCARIAN -->
-                <div class="bg-white/90 backdrop-blur-md p-5 rounded-2xl shadow-[0_4px_15px_rgb(0,0,0,0.05)] border border-white/50 space-y-3">
-                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
-                        <div>
-                            <h3 class="font-bold text-slate-800 text-base">Riwayat Transaksi Kas & Nota</h3>
-                            <p class="text-[11px] text-slate-500">Catatan pemasukan dan pengeluaran transparan (10 data per halaman).</p>
-                        </div>
-                        <!-- Tombol Hapus Terpilih (Muncul Khusus Admin) -->
-                        <div id="container-btn-hapus-terpilih" class="hidden">
-                            <button onclick="hapusTransaksiTerpilih()" class="bg-red-600 hover:bg-red-700 text-white text-xs font-bold px-3 py-2 rounded-xl shadow transition flex items-center gap-1.5">
-                                🗑️ Hapus Terpilih (<span id="count-selected">0</span>)
-                            </button>
-                        </div>
-                    </div>
-
-                    <div>
-                        <input type="text" id="cari-transaksi" oninput="gantiPencarianTransaksi()" placeholder="🔍 Cari transaksi berdasarkan keterangan, kategori, nominal, atau tanggal..." class="w-full bg-white border border-slate-200 text-xs px-3.5 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 shadow-sm">
-                    </div>
-
-                    <div class="border border-slate-100 rounded-xl overflow-hidden bg-white">
-                        <table class="min-w-full text-left text-xs">
-                            <thead class="bg-slate-50 text-slate-600 font-bold border-b border-slate-100">
-                                <tr>
-                                    <th id="th-checkbox-all" class="py-2.5 px-3 w-10 text-center hidden">
-                                        <input type="checkbox" id="select-all-trx" onclick="toggleSelectAllTrx(this)" class="w-4 h-4 accent-red-600 cursor-pointer">
-                                    </th>
-                                    <th class="py-2.5 px-3">Tanggal / Keterangan</th>
-                                    <th class="py-2.5 px-3">Jenis Kas</th>
-                                    <th class="py-2.5 px-3">Kategori</th>
-                                    <th class="py-2.5 px-3">Bukti Nota</th>
-                                    <th class="py-2.5 px-3 text-right">Nominal</th>
-                                    <th id="th-aksi-transaksi" class="py-2.5 px-3 text-center hidden">Aksi</th>
-                                </tr>
-                            </thead>
-                            <tbody id="tabel-riwayat-transaksi" class="divide-y divide-slate-100"></tbody>
-                        </table>
-                    </div>
-
-                    <div class="flex flex-col md:flex-row justify-between items-center pt-1 gap-2 text-xs">
-                        <span id="info-pagination-transaksi" class="text-slate-600 font-medium">Menampilkan 0-0 dari 0 data</span>
-                        <div class="flex items-center gap-2">
-                            <button onclick="gantiHalamanTransaksi(-1)" id="btn-prev-transaksi" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg font-bold transition disabled:opacity-40 disabled:cursor-not-allowed">← Prev</button>
-                            <span id="teks-halaman-aktif-transaksi" class="font-bold text-slate-700 px-1">Hal 1/1</span>
-                            <button onclick="gantiHalamanTransaksi(1)" id="btn-next-transaksi" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg font-bold transition disabled:opacity-40 disabled:cursor-not-allowed">Next →</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- ================= KANAN: PANEL ADMIN & AKSI MANUAL SYNC ================= -->
-            <div id="panel-admin-container" class="w-full lg:w-72 space-y-3 hidden">
-                <div class="bg-white/90 backdrop-blur-md p-4 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.05)] border border-white/50 space-y-2.5">
-                    
-                    <button onclick="bukaModalPengaturan()" class="w-full flex items-center gap-3 bg-gradient-to-r from-slate-800 to-slate-900 hover:from-slate-900 hover:to-black text-white p-3 rounded-xl shadow-md transition text-left">
-                        <div class="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center text-white text-sm">⚙️</div>
-                        <div>
-                            <h4 class="font-bold text-xs text-white">Pengaturan Sistem</h4>
-                            <p class="text-[10px] text-slate-300">Set Web App URL & Sandi</p>
-                        </div>
-                    </button>
-
-                    <button onclick="tarikDataDariCloudManual()" class="w-full flex items-center gap-3 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white p-3 rounded-xl shadow-md transition text-left">
-                        <div class="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center text-white text-sm">📥</div>
-                        <div>
-                            <h4 class="font-bold text-xs text-white">Tarik Data dari Firebase</h4>
-                            <p class="text-[10px] text-amber-100">Realtime dari Firestore</p>
-                        </div>
-                    </button>
-
-                    <button onclick="sinkronkanSemuaWargaKeGsheet()" class="w-full flex items-center gap-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white p-3 rounded-xl shadow-md transition text-left">
-                        <div class="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center text-white text-sm">☁️</div>
-                        <div>
-                            <h4 class="font-bold text-xs text-white">Sinkron Data Warga</h4>
-                            <p class="text-[10px] text-emerald-100">Upload Warga ke Firebase</p>
-                        </div>
-                    </button>
-
-                    <button onclick="sinkronkanSemuaTagihanKeGsheet()" class="w-full flex items-center gap-3 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white p-3 rounded-xl shadow-md transition text-left">
-                        <div class="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center text-white text-sm">☁️</div>
-                        <div>
-                            <h4 class="font-bold text-xs text-white">Sinkron Data Tagihan</h4>
-                            <p class="text-[10px] text-blue-100">Upload Tagihan ke Firebase</p>
-                        </div>
-                    </button>
-
-                    <button onclick="sinkronkanSemuaTransaksiKeGsheet()" class="w-full flex items-center gap-3 bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white p-3 rounded-xl shadow-md transition text-left">
-                        <div class="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center text-white text-sm">☁️</div>
-                        <div>
-                            <h4 class="font-bold text-xs text-white">Sinkron Data Transaksi</h4>
-                            <p class="text-[10px] text-violet-100">Upload Riwayat ke Firebase</p>
-                        </div>
-                    </button>
-
-                    <button onclick="exportExcelBackup()" class="w-full flex items-center gap-3 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white p-3 rounded-xl shadow-md transition text-left">
-                        <div class="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center text-white text-sm">📊</div>
-                        <div>
-                            <h4 class="font-bold text-xs text-white">Export Excel Backup</h4>
-                            <p class="text-[10px] text-emerald-100">Warga+Tagihan+Transaksi .xlsx</p>
-                        </div>
-                    </button>
-
-                    <button onclick="bukaModalKas()" class="w-full flex items-center gap-3 bg-white hover:bg-slate-50 border border-slate-100 p-3 rounded-xl shadow-sm transition text-left">
-                        <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-cyan-400 to-blue-500 flex items-center justify-center text-white text-sm">💼</div>
-                        <div>
-                            <h4 class="font-bold text-xs text-slate-800">Atur Jenis Kas</h4>
-                            <p class="text-[10px] text-slate-400">Tambah, edit, atau hapus</p>
-                        </div>
-                    </button>
-
-                    <button onclick="bukaModalWarga()" class="w-full flex items-center gap-3 bg-white hover:bg-slate-50 border border-slate-100 p-3 rounded-xl shadow-sm transition text-left">
-                        <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-purple-400 to-indigo-500 flex items-center justify-center text-white text-sm">🏠</div>
-                        <div>
-                            <h4 class="font-bold text-xs text-slate-800">Penghuni / Warga</h4>
-                            <p class="text-[10px] text-slate-400">Blok C6 - C20 (Edit & Hapus)</p>
-                        </div>
-                    </button>
-
-                    <button onclick="bukaModalMasukManual()" class="w-full flex items-center gap-3 bg-white hover:bg-slate-50 border border-slate-100 p-3 rounded-xl shadow-sm transition text-left">
-                        <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-green-400 to-emerald-500 flex items-center justify-center text-white text-sm">📥</div>
-                        <div>
-                            <h4 class="font-bold text-xs text-slate-800">Catat Pemasukan</h4>
-                            <p class="text-[10px] text-slate-400">Donasi / sumbangan warga</p>
-                        </div>
-                    </button>
-
-                    <button onclick="bukaModalKeluar()" class="w-full flex items-center gap-3 bg-white hover:bg-slate-50 border border-slate-100 p-3 rounded-xl shadow-sm transition text-left">
-                        <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-red-400 to-rose-500 flex items-center justify-center text-white text-sm">📤</div>
-                        <div>
-                            <h4 class="font-bold text-xs text-slate-800">Catat Pengeluaran</h4>
-                            <p class="text-[10px] text-slate-400">Wajib upload nota gambar</p>
-                        </div>
-                    </button>
-
-                    <button onclick="resetDataPabrik()" class="w-full bg-red-100 hover:bg-red-200 text-red-700 p-2.5 rounded-xl text-xs font-bold transition text-center">⚠️ Reset Data Pabrik</button>
-                </div>
-            </div>
-        </div>
+  <!-- MAIN -->
+  <div class="flex-1 min-w-0 bg-[#f8fafc]">
+    <!-- TOPBAR mobile -->
+    <div class="md:hidden bg-white border-b p-3 flex justify-between items-center sticky top-0 z-30">
+      <div class="font-bold text-sm">Kas RT Digital</div>
+      <button onclick="document.getElementById('sidebar').classList.toggle('hidden');document.getElementById('sidebar').classList.toggle('flex')" class="p-2 border rounded-lg">☰</button>
     </div>
 
-    <!-- ================= MODAL PENGATURAN SISTEM ================= -->
-    <div id="modal-pengaturan" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4">
-        <div class="modal-overlay absolute inset-0 bg-slate-900/60 backdrop-blur-sm opacity-0" onclick="tutupModalPengaturan()"></div>
-        <div class="modal-content relative bg-white w-full max-w-xl rounded-2xl shadow-2xl overflow-hidden opacity-0 translate-y-4 flex flex-col max-h-[90vh] text-xs">
-            <div class="bg-slate-900 text-white p-4 flex justify-between items-center">
-                <h3 class="font-bold text-sm">⚙️ Pengaturan Sistem & Cloud Sync</h3>
-                <button onclick="tutupModalPengaturan()" class="text-slate-300 hover:text-white text-lg">&times;</button>
-            </div>
-            <div class="p-5 space-y-4 overflow-y-auto custom-scroll">
-                
-                <!-- Set Firebase Config -->
-                <div class="bg-slate-50 border border-slate-200 p-4 rounded-xl space-y-2">
-                    <h4 class="font-bold text-slate-800">1. Konfigurasi Firebase</h4>
-                    <p class="text-[11px] text-slate-500">Paste <code class="text-blue-600 font-bold">firebaseConfig</code> dari Firebase Console > Project Settings > Your apps. Data akan realtime ke Firestore.</p>
-                    <textarea id="input-firebase-config" rows="5" placeholder='{"apiKey":"...","authDomain":"...","projectId":"...","storageBucket":"...","messagingSenderId":"...","appId":"..."}' class="w-full bg-white border border-slate-200 p-2.5 rounded-xl outline-none font-mono text-[11px]"></textarea>
-                    <div class="flex gap-2">
-                        <button onclick="simpanFirebaseConfig()" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2.5 rounded-xl transition shadow">💾 Simpan & Hubungkan</button>
-                        <button onclick="testKoneksiFirebase()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2.5 rounded-xl transition">Test</button>
-                    </div>
-                    <p id="firebase-status" class="text-[11px] font-bold"></p>
-                </div>
-
-                <!-- Set Password Admin -->
-                <div class="bg-slate-50 border border-slate-200 p-4 rounded-xl space-y-2">
-                    <h4 class="font-bold text-slate-800">2. Kata Sandi Pengurus / Admin</h4>
-                    <p class="text-[11px] text-slate-500">Digunakan untuk masuk ke mode admin di perangkat ini.</p>
-                    <div class="flex gap-2 pt-1">
-                        <input type="text" id="input-sandi-admin" value="rt02admin" class="flex-1 bg-white border border-slate-200 p-2.5 rounded-xl outline-none font-semibold text-xs">
-                        <button onclick="perbaruiSandiAdmin()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2.5 rounded-xl transition shadow">Perbarui</button>
-                    </div>
-                </div>
-
-            </div>
-            <div class="p-3 bg-slate-100 border-t border-slate-200 text-right">
-                <button onclick="tutupModalPengaturan()" class="bg-slate-800 hover:bg-slate-900 text-white font-bold px-5 py-2 rounded-xl">Tutup</button>
-            </div>
+        <!-- DASHBOARD -->
+    <section id="sec-dashboard" class="p-4 md:p-5 space-y-4">
+      <!-- Header -->
+      <div class="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
+        <div>
+          <h1 class="text-2xl font-bold tracking-tight">Dashboard Kas RT 02</h1>
+          <p class="text-sm text-slate-500" id="dashSub">TKR RT.02 RW.07 · Agustus 2026</p>
         </div>
-    </div>
-
-    <!-- ================= MODAL LOGIN ADMIN ================= -->
-    <div id="modal-login" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4">
-        <div class="modal-overlay absolute inset-0 bg-slate-900/60 backdrop-blur-sm opacity-0" onclick="tutupModalLogin()"></div>
-        <div class="modal-content relative bg-white w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden opacity-0 translate-y-4 p-6 space-y-4 text-xs">
-            <div class="flex justify-between items-center border-b pb-2.5">
-                <h3 class="font-bold text-sm text-slate-800">🔐 Login Admin RT.02</h3>
-                <button onclick="tutupModalLogin()" class="text-slate-400 text-lg">&times;</button>
-            </div>
-            <div class="space-y-3">
-                <div>
-                    <label class="block text-[10px] font-bold text-slate-500 mb-1">Username Admin</label>
-                    <input type="text" id="login-user" placeholder="Masukkan username..." class="w-full border border-slate-200 p-2.5 rounded-xl outline-none font-semibold">
-                </div>
-                <div>
-                    <label class="block text-[10px] font-bold text-slate-500 mb-1">Password Admin</label>
-                    <input type="password" id="login-pass" placeholder="Masukkan password..." class="w-full border border-slate-200 p-2.5 rounded-xl outline-none font-semibold">
-                </div>
-                <button onclick="prosesLoginAdmin()" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold p-2.5 rounded-xl shadow transition">Masuk Sebagai Admin</button>
-            </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <div class="flex items-center gap-2 bg-white border border-slate-200 rounded-full px-3 py-1.5">
+            <span class="text-xs font-bold text-slate-600">Jenis Kas:</span>
+            <select id="dashJenisKas" onchange="render()" class="bg-transparent text-sm font-bold outline-none pr-2"></select>
+          </div>
+          <button onclick="bukaMasuk()" class="adminOnly hidden bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold px-5 py-2.5 rounded-full shadow-sm">+ Transaksi Baru</button>
+          <button onclick="nav('iuran')" class="bg-white border border-slate-200 text-sm font-bold px-5 py-2.5 rounded-full hover:bg-slate-50">Cek Iuran</button>
         </div>
-    </div>
-
-    <!-- MODAL KAS -->
-    <div id="modal-kas" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4">
-        <div class="modal-overlay absolute inset-0 bg-slate-900/60 backdrop-blur-sm opacity-0" onclick="tutupModalKas()"></div>
-        <div class="modal-content relative bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden opacity-0 translate-y-4 p-5 space-y-3 text-xs">
-            <div class="flex justify-between items-center border-b pb-2.5">
-                <h3 class="font-bold text-sm text-slate-800">Manajemen Jenis Kas</h3>
-                <button onclick="tutupModalKas()" class="text-slate-400 hover:text-red-500 transition text-lg">&times;</button>
-            </div>
-            <div class="space-y-2.5">
-                <input type="hidden" id="edit-index-kas" value="">
-                <input type="text" id="input-nama-kas" placeholder="Nama Kas Baru (Cth: KAS HUT RI)" class="w-full border border-slate-200 p-2.5 rounded-xl outline-none">
-                <button id="btn-simpan-kas" onclick="simpanJenisKas()" class="w-full bg-[#1193a6] hover:bg-[#0e7887] text-white font-bold p-2.5 rounded-xl shadow transition">+ Tambah Jenis Kas</button>
-            </div>
-            <div class="border border-slate-100 rounded-xl overflow-hidden max-h-44 overflow-y-auto">
-                <table class="min-w-full text-xs"><tbody id="tabel-jenis-kas-list" class="divide-y divide-slate-100"></tbody></table>
-            </div>
+      </div>
+      <!-- 4 CARDS -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="bg-white border border-slate-200 rounded-2xl p-5"><p class="text-xs font-semibold text-slate-500 tracking-wide">Saldo Kas</p><p id="dSaldo" class="text-2xl font-bold mt-2">Rp 0</p><p class="text-xs text-slate-400 mt-1">Total saldo saat ini</p></div>
+        <div class="bg-white border border-slate-200 rounded-2xl p-5"><p class="text-xs font-semibold text-slate-500">Pemasukan Bulan Ini</p><p id="dMasuk" class="text-2xl font-bold mt-2 text-emerald-600">Rp 0</p><p class="text-xs text-slate-400 mt-1">Agustus 2026</p></div>
+        <div class="bg-white border border-slate-200 rounded-2xl p-5"><p class="text-xs font-semibold text-slate-500">Pengeluaran Bulan Ini</p><p id="dKeluar" class="text-2xl font-bold mt-2 text-rose-600">Rp 0</p><p class="text-xs text-slate-400 mt-1">Agustus 2026</p></div>
+        <div class="bg-white border border-slate-200 rounded-2xl p-5"><p class="text-xs font-semibold text-slate-500">Warga Aktif</p><p id="dWarga" class="text-2xl font-bold mt-2">0</p><p id="dBelumInfo" class="text-xs text-amber-600 mt-1">0 belum bayar</p></div>
+      </div>
+      <!-- 2 COLUMNS -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div class="lg:col-span-2 bg-white border border-slate-200 rounded-2xl p-5">
+          <div class="flex items-center justify-between mb-4"><h3 class="font-bold">Transaksi Terbaru</h3><button onclick="nav('transaksi')" class="text-xs font-semibold text-slate-500 hover:text-slate-800">Lihat semua →</button></div>
+          <div id="dTransaksi" class="divide-y divide-slate-100"></div>
         </div>
-    </div>
-
-    <!-- MODAL WARGA -->
-    <div id="modal-warga" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4">
-        <div class="modal-overlay absolute inset-0 bg-slate-900/60 backdrop-blur-sm opacity-0" onclick="tutupModalWarga()"></div>
-        <div class="modal-content relative bg-white w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden opacity-0 translate-y-4 flex flex-col max-h-[90vh] text-xs">
-            <div class="bg-slate-50 p-4 border-b border-slate-100 flex justify-between items-center">
-                <div>
-                    <h3 class="font-bold text-sm text-slate-800">Data Penghuni & Blok Rumah RT.02 (Admin Only)</h3>
-                    <p class="text-[10px] text-slate-500">Total <span id="count-warga">0</span> Warga terdaftar</p>
-                </div>
-                <button onclick="tutupModalWarga()" class="text-slate-400 hover:text-red-500 transition text-lg">&times;</button>
-            </div>
-            <div class="p-4 space-y-4 overflow-y-auto custom-scroll">
-                <div class="bg-indigo-50/50 border border-indigo-100 p-3 rounded-xl space-y-2.5">
-                    <h4 id="warga-form-title" class="font-bold text-[11px] text-indigo-900 uppercase tracking-wider">Tambah / Edit Data Warga</h4>
-                    <input type="hidden" id="edit-id-warga" value="">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
-                        <input type="text" id="w-nama" placeholder="Nama Kepala Keluarga" class="bg-white border border-slate-200 px-3 py-2 rounded-lg outline-none">
-                        <input type="text" id="w-blok" placeholder="Blok / No Rumah (Cth: C6)" class="bg-white border border-slate-200 px-3 py-2 rounded-lg outline-none">
-                        <input type="text" id="w-hp" placeholder="No HP" class="bg-white border border-slate-200 px-3 py-2 rounded-lg outline-none">
-                        <select id="w-status" class="bg-white border border-slate-200 px-3 py-2 rounded-lg outline-none font-semibold">
-                            <option value="Tetap">Status: Warga Tetap</option>
-                            <option value="Kontrak">Status: Warga Kontrak</option>
-                            <option value="Pengurus (Gratis)">Status: Pengurus (Bebas Iuran/Gratis)</option>
-                            <option value="Rumah Kosong">Status: Rumah Kosong (Bebas Iuran)</option>
-                            <option value="Pindah">Status: Pindah (Bebas Iuran)</option>
-                        </select>
-                        <input type="number" id="w-nominal" placeholder="Nominal Default" class="bg-white border border-slate-200 px-3 py-2 rounded-lg outline-none" value="20000">
-                        <select id="w-jeniskas" class="bg-white border border-slate-200 px-3 py-2 rounded-lg outline-none"></select>
-                    </div>
-                    <div class="flex gap-2">
-                        <button id="btn-simpan-warga" onclick="simpanWargaData()" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 rounded-lg transition">+ Simpan Warga</button>
-                        <button id="btn-batal-warga" onclick="resetFormWarga()" class="hidden bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold px-4 py-2 rounded-lg transition">Batal</button>
-                    </div>
-                </div>
-
-                <div>
-                    <input type="text" id="cari-warga" oninput="gantiPencarianWarga()" placeholder="🔍 Cari warga berdasarkan Nama, Alamat/Blok..." class="w-full bg-slate-50 border border-slate-200 text-xs px-3.5 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm">
-                </div>
-
-                <div class="border border-slate-100 rounded-xl overflow-hidden">
-                    <table class="min-w-full text-left text-xs"><tbody id="tabel-warga-list" class="divide-y divide-slate-100"></tbody></table>
-                </div>
-
-                <div class="flex justify-between items-center pt-1 text-xs">
-                    <span id="info-pagination-warga" class="text-slate-400 font-medium">0-0 dari 0</span>
-                    <div class="flex items-center gap-2">
-                        <button onclick="gantiHalamanWarga(-1)" id="btn-prev-warga" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1 rounded-lg font-bold transition disabled:opacity-40">← Prev</button>
-                        <span id="teks-halaman-warga" class="font-bold text-slate-700">Hal 1/1</span>
-                        <button onclick="gantiHalamanWarga(1)" id="btn-next-warga" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1 rounded-lg font-bold transition disabled:opacity-40">Next →</button>
-                    </div>
-                </div>
-            </div>
-            <div class="p-3 bg-slate-50 border-t border-slate-100 text-right">
-                <button onclick="tutupModalWarga()" class="bg-slate-800 text-white font-bold px-4 py-2 rounded-xl">Tutup</button>
-            </div>
+          <div class="flex justify-between mb-3"><h3 class="font-bold">Transaksi Terbaru</h3><button onclick="nav('transaksi')" class="text-xs text-slate-500">Lihat semua →</button></div>
+          <div id="dTransaksi" class="divide-y"></div>
         </div>
-    </div>
-
-    <div id="modal-generate-tagihan" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4">
-        <div class="modal-overlay absolute inset-0 bg-slate-900/60 backdrop-blur-sm opacity-0" onclick="tutupModalGenerateTagihan()"></div>
-        <div class="modal-content relative bg-white w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden opacity-0 translate-y-4 p-5 space-y-3 text-xs">
-            <div class="flex justify-between items-center border-b pb-2.5">
-                <h3 class="font-bold text-sm text-blue-600">Generate Tagihan Bulanan</h3>
-                <button onclick="tutupModalGenerateTagihan()" class="text-slate-400 text-lg">&times;</button>
-            </div>
-            <div class="space-y-2.5">
-                <div>
-                    <label class="block text-[10px] font-bold text-slate-500 mb-1">Jenis Kas</label>
-                    <select id="gen-jeniskas" class="w-full border p-2.5 rounded-xl outline-none font-bold text-slate-700 bg-slate-50"></select>
-                </div>
-                <div>
-                    <label class="block text-[10px] font-bold text-slate-500 mb-1">Periode Bulan</label>
-                    <select id="gen-periode" class="w-full border p-2.5 rounded-xl outline-none font-semibold">
-                        <option value="Januari 2026">Januari 2026</option>
-                        <option value="Februari 2026">Februari 2026</option>
-                        <option value="Maret 2026">Maret 2026</option>
-                        <option value="April 2026">April 2026</option>
-                        <option value="Mei 2026">Mei 2026</option>
-                        <option value="Juni 2026">Juni 2026</option>
-                        <option value="Juli 2026">Juli 2026</option>
-                        <option value="Agustus 2026" selected>Agustus 2026</option>
-                        <option value="September 2026">September 2026</option>
-                        <option value="Oktober 2026">Oktober 2026</option>
-                        <option value="November 2026">November 2026</option>
-                        <option value="Desember 2026">Desember 2026</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-[10px] font-bold text-slate-500 mb-1">Nominal (Rp)</label>
-                    <input type="number" id="gen-nominal" class="w-full border p-2.5 rounded-xl outline-none font-bold text-sm text-blue-600" value="20000">
-                </div>
-                <p class="text-[10px] text-amber-600 italic">*Warga berstatus Pengurus (Gratis), Rumah Kosong, atau Pindah otomatis dilewati dan tidak dibuatkan tagihan.</p>
-                <button onclick="prosesGenerateTagihanCustom()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold p-2.5 rounded-xl shadow transition">⚡ Buat Tagihan Sekarang (Auto-Replace)</button>
-            </div>
+        <div class="bg-white border rounded-2xl p-5">
+          <div class="flex justify-between mb-3"><h3 class="font-bold">Iuran Bulan Ini</h3><button onclick="nav('iuran')" class="adminOnly hidden text-xs bg-slate-900 text-white px-3 py-1 rounded-full">Kelola</button></div>
+          <p class="text-xs text-slate-500">Tingkat pembayaran <span id="dPersen" class="font-bold text-slate-800 float-right">0%</span></p>
+          <div class="w-full bg-slate-100 h-2 rounded-full my-2"><div id="dBar" class="bg-emerald-500 h-2 rounded-full" style="width:0%"></div></div>
+          <p id="dInfoLunas" class="text-xs text-slate-400 mb-3">0/0 warga</p>
+          <p class="text-xs font-bold">Belum bayar (<span id="dCountBelum">0</span>)</p>
+          <div id="dListBelum" class="space-y-2 max-h-72 overflow-auto mt-2"></div>
+          <div class="mt-4 pt-3 border-t text-xs">Neto: <b id="dNeto">Rp 0</b> <span class="text-slate-400" id="dNetoDetail"></span></div>
+          <button onclick="exportExcel()" class="mt-3 w-full border py-2 rounded-xl text-sm font-bold">📊 Export Excel</button>
+          <button onclick="nav('laporan')" class="mt-2 w-full bg-slate-900 text-white py-2 rounded-xl text-sm font-bold">Lihat Laporan Lengkap</button>
         </div>
-    </div>
+      </div>
+    </section>
 
-    <!-- MODAL EDIT NOMINAL TAGIHAN -->
-    <div id="modal-edit-nominal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4">
-        <div class="modal-overlay absolute inset-0 bg-slate-900/60 backdrop-blur-sm opacity-0" onclick="tutupModalEditNominalTagihan()"></div>
-        <div class="modal-content relative bg-white w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden opacity-0 translate-y-4 p-5 space-y-3 text-xs">
-            <div class="flex justify-between items-center border-b pb-2.5">
-                <h3 class="font-bold text-sm text-blue-600">Edit Nominal Tagihan</h3>
-                <button onclick="tutupModalEditNominalTagihan()" class="text-slate-400 text-lg">&times;</button>
-            </div>
-            <div class="space-y-2.5">
-                <input type="hidden" id="edit-tagihan-id" value="">
-                <div>
-                    <label class="block text-[10px] font-bold text-slate-500 mb-1">Warga & Jenis Kas</label>
-                    <input type="text" id="edit-tagihan-info" class="w-full border p-2.5 rounded-xl outline-none bg-slate-100 font-semibold text-slate-700" disabled>
-                </div>
-                <div>
-                    <label class="block text-[10px] font-bold text-slate-500 mb-1">Nominal Baru (Rp)</label>
-                    <input type="number" id="edit-tagihan-nominal-input" class="w-full border p-2.5 rounded-xl outline-none font-bold text-sm text-blue-600">
-                </div>
-                <button onclick="simpanPerubahanNominalTagihan()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold p-2.5 rounded-xl shadow transition">💾 Simpan Perubahan</button>
-            </div>
+    <!-- TRANSAKSI -->
+    <section id="sec-transaksi" class="hidden p-4 md:p-6 space-y-4 max-w-5xl">
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
+        <div><h1 class="text-xl font-bold">Transaksi</h1><p class="text-xs text-slate-500">Riwayat pemasukan & pengeluaran kas RT</p></div>
+        <button onclick="bukaMasuk()" class="adminOnly hidden bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold px-5 py-2.5 rounded-full">+ Tambah Transaksi</button>
+      </div>
+      <div class="bg-white border border-slate-200 rounded-2xl p-4">
+        <div class="flex flex-col md:flex-row gap-3 mb-4">
+          <div class="flex-1 relative">
+            <span class="absolute left-3 top-2.5 text-slate-400">🔍</span>
+            <input id="cariTrx" oninput="renderTransaksi()" placeholder="Cari keterangan, kategori..." class="w-full border border-slate-200 bg-slate-50 pl-9 p-2.5 rounded-xl text-sm outline-none focus:border-emerald-300">
+          </div>
+          <select id="filterKategoriTrx" onchange="renderTransaksi()" class="border border-slate-200 bg-white text-sm p-2.5 rounded-xl font-medium min-w-[160px]">
+            <option value="SEMUA">Semua Kategori</option><option value="Iuran Warga">Iuran Warga</option><option value="Pemasukan">Pemasukan</option><option value="Pengeluaran">Pengeluaran</option>
+          </select>
         </div>
-    </div>
+        <div id="listTrx" class="space-y-2 max-h-[650px] overflow-auto pr-1"></div>
+      </div>
+    </section>
 
-    <!-- MODAL PUSAT DOWNLOAD PDF -->
-    <div id="modal-pdf" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4">
-        <div class="modal-overlay absolute inset-0 bg-slate-900/60 backdrop-blur-sm opacity-0" onclick="tutupModalPdf()"></div>
-        <div class="modal-content relative bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden opacity-0 translate-y-4 p-5 space-y-3 text-xs">
-            <div class="flex justify-between items-center border-b pb-2.5">
-                <h3 class="font-bold text-sm text-blue-600">Pusat Download Laporan PDF</h3>
-                <button onclick="tutupModalPdf()" class="text-slate-400 text-lg">&times;</button>
-            </div>
-            
-            <div class="space-y-3">
-                <div>
-                    <label class="block text-[10px] font-bold text-slate-500 mb-1">1. Pilih Jenis Laporan PDF</label>
-                    <select id="pdf-jenis-laporan" onchange="gantiJenisLaporanPdf(this.value)" class="w-full border p-2.5 rounded-xl outline-none font-bold text-slate-700 bg-slate-50 cursor-pointer">
-                        <option value="TRANSAKSI">📂 Laporan Riwayat Transaksi Kas</option>
-                        <option value="LUNAS">✅ Laporan Warga Sudah Lunas (Per Bulan)</option>
-                        <option value="BELUM">❌ Laporan Warga Belum Bayar / Tunggakan</option>
-                    </select>
-                </div>
-
-                <div>
-                    <label class="block text-[10px] font-bold text-slate-500 mb-1">2. Pilih Jenis Kas</label>
-                    <select id="pdf-jeniskas" class="w-full border p-2.5 rounded-xl outline-none font-bold text-slate-700 bg-slate-50 cursor-pointer">
-                        <!-- Diisi otomatis -->
-                    </select>
-                </div>
-
-                <!-- Opsi Filter untuk Laporan Transaksi -->
-                <div id="container-filter-transaksi" class="space-y-2.5 pt-1 border-t">
-                    <div>
-                        <label class="block text-[10px] font-bold text-slate-500 mb-1">Dari Tanggal Transaksi</label>
-                        <input type="date" id="pdf-tgl-mulai" class="w-full border p-2.5 rounded-xl outline-none">
-                    </div>
-                    <div>
-                        <label class="block text-[10px] font-bold text-slate-500 mb-1">Sampai Tanggal Transaksi</label>
-                        <input type="date" id="pdf-tgl-selesai" class="w-full border p-2.5 rounded-xl outline-none">
-                    </div>
-                </div>
-
-                <!-- Opsi Filter untuk Laporan Lunas / Belum Bayar -->
-                <div id="container-filter-tagihan" class="space-y-2.5 pt-1 border-t hidden">
-                    <div>
-                        <label class="block text-[10px] font-bold text-slate-500 mb-1">Pilih Periode Bulan Tagihan</label>
-                        <select id="pdf-periode-bulan" class="w-full border p-2.5 rounded-xl outline-none font-semibold">
-                            <option value="Januari 2026">Januari 2026</option>
-                            <option value="Februari 2026">Februari 2026</option>
-                            <option value="Maret 2026">Maret 2026</option>
-                            <option value="April 2026">April 2026</option>
-                            <option value="Mei 2026">Mei 2026</option>
-                            <option value="Juni 2026">Juni 2026</option>
-                            <option value="Juli 2026">Juli 2026</option>
-                            <option value="Agustus 2026" selected>Agustus 2026</option>
-                            <option value="September 2026">September 2026</option>
-                            <option value="Oktober 2026">Oktober 2026</option>
-                            <option value="November 2026">November 2026</option>
-                            <option value="Desember 2026">Desember 2026</option>
-                        </select>
-                    </div>
-                </div>
-
-                <button onclick="eksekusiDownloadPdf()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold p-3 rounded-xl shadow transition">📥 Unduh PDF Sekarang</button>
-            </div>
+    <!-- IURAN -->
+    <section id="sec-iuran" class="hidden p-4 md:p-6 space-y-4">
+      <div class="flex justify-between items-center">
+        <h1 class="text-xl font-bold">Iuran Warga</h1>
+        <div class="flex gap-2 items-center">
+          <select id="filterBulan" onchange="renderIuran()" class="border bg-white text-sm p-2 rounded-xl"><option>Agustus 2026</option><option>Juli 2026</option><option>September 2026</option><option>Juni 2026</option></select>
+          <select id="filterKas" onchange="renderIuran()" class="border bg-white text-sm p-2 rounded-xl"></select>
+          <button id="btnGenIuran" onclick="bukaGenerate()" class="adminOnly hidden bg-slate-900 text-white text-sm font-bold px-4 py-2 rounded-full">⚡ Generate</button>
         </div>
-    </div>
+      </div>
+      <div class="bg-white border rounded-2xl p-4">
+        <input id="cariIuran" oninput="renderIuran()" placeholder="🔍 Cari nama, blok..." class="w-full border bg-slate-50 p-2.5 rounded-xl text-sm mb-3">
+        <div class="overflow-auto"><table class="w-full text-sm"><thead class="text-xs text-slate-500 border-b"><tr><th class="text-left py-2">Warga / Blok</th><th>Jenis Kas</th><th class="text-right">Nominal</th><th class="text-center">Status</th><th class="text-center">Aksi</th></tr></thead><tbody id="tblIuran"></tbody></table></div>
+        <div class="flex justify-between text-xs mt-3"><span id="infoIuran">0-0 dari 0</span><div class="flex gap-2"><button onclick="pageIuran(-1)" class="border px-3 py-1 rounded-lg">Prev</button><button onclick="pageIuran(1)" class="border px-3 py-1 rounded-lg">Next</button></div></div>
+      </div>
+    </section>
 
-    <div id="modal-masuk-manual" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4">
-        <div class="modal-overlay absolute inset-0 bg-slate-900/60 backdrop-blur-sm opacity-0" onclick="tutupModalMasukManual()"></div>
-        <div class="modal-content relative bg-white w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden opacity-0 translate-y-4 p-5 space-y-3 text-xs">
-            <div class="flex justify-between items-center border-b pb-2.5">
-                <h3 class="font-bold text-sm text-green-600">Catat Pemasukan Manual</h3>
-                <button onclick="tutupModalMasukManual()" class="text-slate-400 text-lg">&times;</button>
-            </div>
-            <div class="space-y-2.5">
-                <div><label class="block text-[10px] font-bold text-slate-500 mb-1">Jenis Kas</label><select id="man-masuk-kas" class="w-full border p-2.5 rounded-xl outline-none"></select></div>
-                <div><label class="block text-[10px] font-bold text-slate-500 mb-1">Nominal (Rp)</label><input type="number" id="man-masuk-nominal" class="w-full border p-2.5 rounded-xl outline-none"></div>
-                <div><label class="block text-[10px] font-bold text-slate-500 mb-1">Keterangan</label><input type="text" id="man-masuk-ket" class="w-full border p-2.5 rounded-xl outline-none"></div>
-                <div><label class="block text-[10px] font-bold text-slate-500 mb-1">Tanggal</label><input type="date" id="man-masuk-tgl" class="w-full border p-2.5 rounded-xl outline-none"></div>
-                <button onclick="simpanPemasukanManual()" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold p-2.5 rounded-xl">Simpan Pemasukan</button>
-            </div>
+    <!-- WARGA -->
+    <section id="sec-warga" class="hidden p-4 md:p-6 space-y-4">
+      <div class="flex justify-between items-center">
+        <div><h1 class="text-xl font-bold">Data Warga</h1><p class="text-xs text-slate-500" id="wargaSub">Kelola daftar warga anggota RT - 0 aktif / 0 total</p></div>
+        <button onclick="bukaWarga()" class="adminOnly hidden bg-emerald-600 text-white text-sm font-bold px-4 py-2 rounded-full">+ Tambah Warga</button>
+      </div>
+      <div class="bg-white border rounded-2xl p-4 flex flex-col md:flex-row gap-3">
+        <div class="flex-1 relative">
+          <span class="absolute left-3 top-2.5 text-slate-400">🔍</span>
+          <input id="cariWarga" oninput="renderWarga()" placeholder="Cari nama, no. rumah, atau telepon..." class="w-full border bg-slate-50 pl-9 p-2.5 rounded-xl text-sm">
         </div>
-    </div>
+        <select id="filterStatusWarga" onchange="renderWarga()" class="border bg-white text-sm p-2.5 rounded-xl font-medium">
+          <option value="SEMUA">Semua status</option><option value="aktif">Aktif</option><option value="nonaktif">Nonaktif</option>
+        </select>
+      </div>
+      <div id="gridWarga" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 w-full"></div>
+    </section>
 
-    <div id="modal-keluar" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4">
-        <div class="modal-overlay absolute inset-0 bg-slate-900/60 backdrop-blur-sm opacity-0" onclick="tutupModalKeluar()"></div>
-        <div class="modal-content relative bg-white w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden opacity-0 translate-y-4 p-5 space-y-3 text-xs">
-            <div class="flex justify-between items-center border-b pb-2.5">
-                <h3 class="font-bold text-sm text-red-600">Catat Pengeluaran Kas</h3>
-                <button onclick="tutupModalKeluar()" class="text-slate-400 text-lg">&times;</button>
-            </div>
-            <div class="space-y-2.5">
-                <div><label class="block text-[10px] font-bold text-slate-500 mb-1">Jenis Kas</label><select id="out-jeniskas" class="w-full border p-2.5 rounded-xl outline-none"></select></div>
-                <div><label class="block text-[10px] font-bold text-slate-500 mb-1">Nominal (Rp)</label><input type="number" id="out-nominal" class="w-full border p-2.5 rounded-xl outline-none"></div>
-                <div><label class="block text-[10px] font-bold text-slate-500 mb-1">Keterangan</label><input type="text" id="out-ket" class="w-full border p-2.5 rounded-xl outline-none"></div>
-                <div><label class="block text-[10px] font-bold text-slate-500 mb-1">Tanggal</label><input type="date" id="out-tgl" class="w-full border p-2.5 rounded-xl outline-none"></div>
-                <div><label class="block text-[10px] font-bold text-red-600 mb-1">Upload Bukti Nota (Wajib)</label><input type="file" id="out-bukti" accept="image/*" class="w-full border border-red-200 bg-red-50/50 p-1.5 rounded-xl text-[11px] outline-none cursor-pointer"></div>
-                <button onclick="simpanPengeluaran()" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold p-2.5 rounded-xl shadow">Simpan Pengeluaran</button>
-            </div>
+    <!-- LAPORAN -->
+    <section id="sec-laporan" class="hidden p-4 md:p-6 space-y-4">
+      <h1 class="text-xl font-bold">Laporan</h1>
+      <div class="grid md:grid-cols-3 gap-3">
+        <div class="bg-white border rounded-2xl p-4 text-center"><p class="text-xs text-slate-500">Total Pemasukan</p><p id="lMasuk" class="text-xl font-bold text-emerald-600">Rp 0</p></div>
+        <div class="bg-white border rounded-2xl p-4 text-center"><p class="text-xs text-slate-500">Total Pengeluaran</p><p id="lKeluar" class="text-xl font-bold text-rose-600">Rp 0</p></div>
+        <div class="bg-white border rounded-2xl p-4 text-center"><p class="text-xs text-slate-500">Saldo Akhir</p><p id="lSaldo" class="text-xl font-bold">Rp 0</p></div>
+      </div>
+      <div class="bg-white border rounded-2xl p-4 flex gap-2">
+        <button onclick="exportExcel()" class="bg-emerald-600 text-white px-4 py-2 rounded-full text-sm font-bold">📊 Export Excel</button>
+        <button onclick="downloadPdf('LUNAS')" class="bg-white border px-4 py-2 rounded-full text-sm font-bold">PDF Lunas</button>
+        <button onclick="downloadPdf('BELUM')" class="bg-white border px-4 py-2 rounded-full text-sm font-bold">PDF Belum</button>
+      </div>
+    </section>
+
+    <!-- PENGATURAN -->
+    <section id="sec-pengaturan" class="hidden p-4 md:p-6 space-y-4 max-w-4xl">
+      <div>
+        <h1 class="text-xl font-bold">Pengaturan</h1>
+        <p class="text-xs text-slate-500">Konfigurasi identitas RT dan nominal iuran bulanan</p>
+      </div>
+      <div class="bg-white border rounded-2xl p-5 space-y-4">
+        <div class="flex items-center gap-2 font-bold"><span class="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">🏢</span> Identitas RT</div>
+        <div class="grid md:grid-cols-2 gap-3">
+          <div><label class="text-xs font-semibold">Nama RT</label><input id="pNamaRT" class="w-full border p-2.5 rounded-xl mt-1 bg-white"></div>
+          <div><label class="text-xs font-semibold">Nama RW</label><input id="pNamaRW" class="w-full border p-2.5 rounded-xl mt-1 bg-white"></div>
+          <div><label class="text-xs font-semibold">Kelurahan</label><input id="pKelurahan" class="w-full border p-2.5 rounded-xl mt-1 bg-white"></div>
+          <div><label class="text-xs font-semibold">Kecamatan</label><input id="pKecamatan" class="w-full border p-2.5 rounded-xl mt-1 bg-white"></div>
+          <div><label class="text-xs font-semibold">Kota/Kabupaten</label><input id="pKota" class="w-full border p-2.5 rounded-xl mt-1 bg-white"></div>
+          <div><label class="text-xs font-semibold">Tahun aktif</label><input id="pTahun" class="w-full border p-2.5 rounded-xl mt-1 bg-white"></div>
         </div>
-    </div>
-
-    <!-- ================= SCRIPT UTAMA ================= -->
-    <script>
-        // ================= FIREBASE CONFIG =================
-        // GANTI dengan config Anda dari Firebase Console
-        // Cara: console.firebase.google.com > Project Settings > Your apps > SDK setup
-        const DEFAULT_FIREBASE_CONFIG = {
-            apiKey: "AIzaSyBbby_z2WVw02-1I9R-CPsQBCKzunLdROc",
-            authDomain: "kas-rt02-tkr.firebaseapp.com",
-            projectId: "kas-rt02-tkr",
-            storageBucket: "kas-rt02-tkr.firebasestorage.app",
-            messagingSenderId: "425411747451",
-            appId: "1:425411747451:web:e5e7a8dcfd7256af28ccde"
-        };
-        let FIREBASE_CONFIG = (() => {
-            try {
-                const saved = localStorage.getItem('rt_firebase_config');
-                if(saved) return JSON.parse(saved);
-                if(Object.keys(DEFAULT_FIREBASE_CONFIG).length > 0 && DEFAULT_FIREBASE_CONFIG.apiKey) return DEFAULT_FIREBASE_CONFIG;
-                return null;
-            } catch(e){ return null; }
-        })();
-        
-        let db = null;
-        let firebaseConnected = false;
-        
-        function initFirebase(){
-            try {
-                if(!FIREBASE_CONFIG || !FIREBASE_CONFIG.apiKey || !FIREBASE_CONFIG.projectId){
-                    console.log("Firebase belum dikonfigurasi, pakai localStorage");
-                    document.getElementById('firebase-status') && (document.getElementById('firebase-status').innerText = "⚠️ Belum terhubung - isi config di Pengaturan");
-                    return false;
-                }
-                if(!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
-                db = firebase.firestore();
-                firebaseConnected = true;
-                console.log("Firebase connected:", FIREBASE_CONFIG.projectId);
-                const el = document.getElementById('firebase-status');
-                if(el) { el.innerText = "✅ Terhubung ke Firebase: " + FIREBASE_CONFIG.projectId; el.className = "text-[11px] font-bold text-emerald-600"; }
-                return true;
-            } catch(e){
-                console.error("Firebase init error:", e);
-                const el = document.getElementById('firebase-status');
-                if(el) { el.innerText = "❌ Gagal: " + e.message; el.className = "text-[11px] font-bold text-red-600"; }
-                return false;
-            }
-        }
-        function simpanFirebaseConfig(){
-            const raw = document.getElementById('input-firebase-config').value.trim();
-            if(!raw) return alert("Paste JSON config dulu!");
-            try {
-                let cfg = JSON.parse(raw);
-                // support jika paste full firebaseConfig dengan var
-                if(cfg.firebaseConfig) cfg = cfg.firebaseConfig;
-                localStorage.setItem('rt_firebase_config', JSON.stringify(cfg));
-                FIREBASE_CONFIG = cfg;
-                if(initFirebase()){
-                    alert("Firebase terhubung! Data akan sync realtime.");
-                    location.reload();
-                }
-            } catch(e){ alert("JSON tidak valid: " + e.message); }
-        }
-        async function testKoneksiFirebase(){
-            if(!initFirebase()) return alert("Config belum benar");
-            try {
-                await db.collection("config").doc("jenisKas").get();
-                alert("✅ Koneksi Firebase OK! Project: " + FIREBASE_CONFIG.projectId);
-            } catch(e){ alert("❌ Gagal konek: " + e.message); }
-        }
-
-        let isDataLoaded = false;
-        let ADMIN_PASS = localStorage.getItem('rt_admin_pass') || "rt02admin";
-
-        async function tulisLog(action, detail){
-            if(!firebaseConnected) return;
-            try{
-                await db.collection("logs").add({
-                    action: action,
-                    detail: detail,
-                    by: "admin",
-                    at: firebase.firestore.FieldValue.serverTimestamp(),
-                    tgl: new Date().toISOString()
-                });
-            }catch(e){ console.log("log gagal", e); }
-        }
-
-        let isAdminLoggedIn = (() => {
-            try {
-                return sessionStorage.getItem('rt_is_admin') === 'true';
-            } catch(e) { return false; }
-        })();
-
-        function bukaModalPengaturan() {
-            if(!isAdminLoggedIn) return;
-            const cfg = FIREBASE_CONFIG ? JSON.stringify(FIREBASE_CONFIG, null, 2) : "";
-            document.getElementById('input-firebase-config').value = cfg;
-            document.getElementById('input-sandi-admin').value = ADMIN_PASS;
-            initFirebase();
-            toggleModal('modal-pengaturan', 'open');
-        }
-        function tutupModalPengaturan() { toggleModal('modal-pengaturan', 'close'); }
-
-        // simpanUrlGasBaru deprecated - pakai simpanFirebaseConfig
-
-        function perbaruiSandiAdmin() {
-            const sandiBaru = document.getElementById('input-sandi-admin').value.trim();
-            if(!sandiBaru) return alert("Kata sandi tidak boleh kosong!");
-            ADMIN_PASS = sandiBaru;
-            localStorage.setItem('rt_admin_pass', sandiBaru);
-            alert("Kata sandi admin berhasil diperbarui!");
-            tutupModalPengaturan();
-        }
-
-        function handleLoginLogoutBtn() {
-            if (isAdminLoggedIn) {
-                if (confirm("Keluar dari Mode Admin?")) {
-                    isAdminLoggedIn = false;
-                    sessionStorage.removeItem('rt_is_admin');
-                    location.reload();
-                }
-            } else {
-                toggleModal('modal-login', 'open');
-            }
-        }
-
-        function tutupModalLogin() { toggleModal('modal-login', 'close'); }
-
-        function prosesLoginAdmin() {
-            const user = document.getElementById('login-user').value.trim();
-            const pass = document.getElementById('login-pass').value.trim();
-
-            if (user === "admin" && pass === ADMIN_PASS) {
-                isAdminLoggedIn = true;
-                sessionStorage.setItem('rt_is_admin', 'true');
-                tutupModalLogin();
-                alert("Berhasil Login sebagai Admin!");
-                location.reload();
-            } else {
-                alert("Username atau Password Admin salah!");
-            }
-        }
-
-        async function sinkronkanSemuaWargaKeGsheet() {
-            if(!isAdminLoggedIn) return;
-            if(!firebaseConnected && !initFirebase()) return alert("Hubungkan Firebase dulu di Pengaturan Sistem!");
-            dataWarga = bersihkanDataWarga(dataWarga);
-            simpanLocalState();
-            if(!confirm("Sinkronkan " + dataWarga.length + " warga ke Firebase?")) return;
-            try {
-                const batch = db.batch();
-                // hapus dulu? pakai set per doc
-                for(let w of dataWarga){
-                    batch.set(db.collection("warga").doc(String(w.id)), w);
-                }
-                await batch.commit();
-                alert("✅ " + dataWarga.length + " warga berhasil sync ke Firebase!");
-            } catch(e){ alert("Gagal sync warga: " + e.message); }
-        }
-
-        async function sinkronkanSemuaTagihanKeGsheet() {
-            if(!isAdminLoggedIn) return;
-            if(!firebaseConnected && !initFirebase()) return alert("Hubungkan Firebase dulu!");
-            dataTagihan = bersihkanDataTagihan(dataTagihan);
-            simpanLocalState();
-            if(dataTagihan.length === 0) return alert("Belum ada data tagihan!");
-            if(!confirm(`Sinkronkan ${dataTagihan.length} tagihan ke Firebase?`)) return;
-            try {
-                // Firestore batch max 500, chunk
-                for(let i=0;i<dataTagihan.length;i+=450){
-                    const batch = db.batch();
-                    dataTagihan.slice(i,i+450).forEach(t=> batch.set(db.collection("tagihan").doc(String(t.id)), t));
-                    await batch.commit();
-                }
-                alert("✅ Tagihan berhasil sync ke Firebase!");
-            } catch(e){ alert("Gagal sync tagihan: " + e.message); }
-        }
-
-        async function sinkronkanSemuaTransaksiKeGsheet() {
-            if(!isAdminLoggedIn) return;
-            if(!firebaseConnected && !initFirebase()) return alert("Hubungkan Firebase dulu!");
-            dataTransaksi = bersihkanDataTransaksi(dataTransaksi);
-            simpanLocalState();
-            if(dataTransaksi.length === 0) return alert("Belum ada transaksi!");
-            if(!confirm(`Sinkronkan ${dataTransaksi.length} transaksi ke Firebase?`)) return;
-            try {
-                for(let i=0;i<dataTransaksi.length;i+=450){
-                    const batch = db.batch();
-                    dataTransaksi.slice(i,i+450).forEach(tr=>{
-                        // Potong bukti base64 biar tidak melebihi 1MB limit doc
-                        let doc = {...tr, bukti: tr.bukti && tr.bukti.length > 900000 ? "[GAMBAR_NOTA_TERPOTONG]" : tr.bukti};
-                        batch.set(db.collection("transaksi").doc(String(tr.id)), doc);
-                    });
-                    await batch.commit();
-                }
-                alert("✅ Transaksi berhasil sync ke Firebase!");
-            } catch(e){ alert("Gagal sync transaksi: " + e.message); }
-        }
-
-        async function syncTransaksiKeCloudClean() {
-            if(!firebaseConnected) return;
-            try {
-                // sync incremental: cukup sync transaksi terakhir (optimasi)
-                // untuk simpel, sync batch 450 terakhir
-                let toSync = dataTransaksi.slice(-450);
-                for(let tr of toSync){
-                    let doc = {...tr, bukti: tr.bukti && tr.bukti.length > 900000 ? "[GAMBAR_NOTA_TERPOTONG]" : tr.bukti};
-                    await db.collection("transaksi").doc(String(tr.id)).set(doc, {merge:true});
-                }
-            } catch(e){ console.log("sync transaksi error", e); }
-        }
-        async function syncWargaKeCloudSingle(w){
-            if(!firebaseConnected) return;
-            try { await db.collection("warga").doc(String(w.id)).set(w); } catch(e){ console.log(e); }
-        }
-        async function syncTagihanKeCloudIncremental(){
-            if(!firebaseConnected) return;
-            try {
-                for(let i=0;i<dataTagihan.length;i+=450){
-                    const batch = db.batch();
-                    dataTagihan.slice(i,i+450).forEach(t=> batch.set(db.collection("tagihan").doc(String(t.id)), t, {merge:true}));
-                    await batch.commit();
-                }
-            } catch(e){ console.log(e); }
-        }
-
-        function loadSafeStorage(key, fallbackValue) {
-            try {
-                const item = localStorage.getItem(key);
-                return item ? JSON.parse(item) : fallbackValue;
-            } catch (e) { return fallbackValue; }
-        }
-
-        let jenisKasList = loadSafeStorage('rt_jenis_kas', ["Kas Bulanan", "Kas Keamanan", "Kas Sosial / Kematian", "KAS HUT RI"]);
-        let rawWarga = loadSafeStorage('rt_data_warga', []);
-        let rawTagihan = loadSafeStorage('rt_data_tagihan', []);
-        let rawTransaksi = loadSafeStorage('rt_data_transaksi', []);
-
-        function bersihkanFormatPeriode(val) {
-            if(!val) return "Agustus 2026";
-            let str = String(val);
-            if (str.indexOf("T") > -1 && str.indexOf("Z") > -1) {
-                let d = new Date(str);
-                if (!isNaN(d.getTime())) {
-                    let months = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
-                    return months[d.getMonth()] + " " + d.getFullYear();
-                }
-            }
-            return str;
-        }
-
-        function bersihkanDataWarga(arrW) {
-            if(!Array.isArray(arrW)) return [];
-            let seen = new Set();
-            return arrW.filter((w, idx) => {
-                if(!w) return false;
-                if(!w.id) w.id = Date.now() + idx;
-                let key = String(w.id);
-                if(seen.has(key)) return false;
-                seen.add(key);
-                return true;
-            });
-        }
-
-        function bersihkanDataTagihan(arrT) {
-            if(!Array.isArray(arrT)) return [];
-            let seen = new Set();
-            return arrT.map(t => {
-                if(t && t.periode) {
-                    t.periode = bersihkanFormatPeriode(t.periode);
-                }
-                return t;
-            }).filter((t, idx) => {
-                if(!t) return false;
-                if(!t.id) t.id = "T_" + (t.wargaId || idx) + "_" + idx;
-                let key = String(t.id);
-                if(seen.has(key)) return false;
-                seen.add(key);
-                return true;
-            });
-        }
-
-        function bersihkanDataTransaksi(arrTrx) {
-            if(!Array.isArray(arrTrx)) return [];
-            let seenIds = new Set();
-            let seenTagihanIds = new Set();
-            let cleanList = [];
-            
-            arrTrx.forEach((tr, idx) => {
-                if(!tr) return;
-                if(!tr.id || tr.id === "" || tr.id === "undefined" || tr.id === null) {
-                    tr.id = Date.now() + idx + Math.floor(Math.random() * 10000);
-                }
-                
-                let tId = String(tr.tagihanId || "").trim();
-                if (tId !== "" && tId !== "-") {
-                    if (!seenTagihanIds.has(tId)) {
-                        seenTagihanIds.add(tId);
-                        seenIds.add(String(tr.id));
-                        cleanList.push(tr);
-                    }
-                } else {
-                    let idStr = String(tr.id);
-                    if (!seenIds.has(idStr)) {
-                        seenIds.add(idStr);
-                        cleanList.push(tr);
-                    } else {
-                        tr.id = Date.now() + idx + Math.floor(Math.random() * 10000);
-                        seenIds.add(String(tr.id));
-                        cleanList.push(tr);
-                    }
-                }
-            });
-            return cleanList;
-        }
-
-        let dataWarga = bersihkanDataWarga(rawWarga);
-        let dataTagihan = bersihkanDataTagihan(rawTagihan);
-        let dataTransaksi = bersihkanDataTransaksi(rawTransaksi);
-
-        let kasAktifFilter = isAdminLoggedIn ? "SEMUA" : (jenisKasList[0] || "Kas Bulanan");
-        let halamanAktifTagihan = 1;
-        let halamanAktifWarga = 1;
-        let halamanAktifTransaksi = 1;
-        const itemPerHalaman = 10;
-        const itemPerHalamanWarga = 10;
-        const itemPerHalamanTransaksi = 10;
-
-        function simpanLocalState() {
-            try {
-                dataWarga = bersihkanDataWarga(dataWarga);
-                dataTagihan = bersihkanDataTagihan(dataTagihan);
-                dataTransaksi = bersihkanDataTransaksi(dataTransaksi);
-                localStorage.setItem('rt_jenis_kas', JSON.stringify(jenisKasList));
-                localStorage.setItem('rt_data_warga', JSON.stringify(dataWarga));
-                localStorage.setItem('rt_data_tagihan', JSON.stringify(dataTagihan));
-                localStorage.setItem('rt_data_transaksi', JSON.stringify(dataTransaksi));
-            } catch (e) { console.error(e); }
-        }
-
-        function resetDataPabrik() {
-            if(!isAdminLoggedIn) return;
-            if(confirm("Yakin ingin mereset seluruh data aplikasi ke pengaturan awal?")) {
-                localStorage.clear();
-                sessionStorage.clear();
-                location.reload();
-            }
-        }
-
-        async function autoTarikDataDariCloud() {
-            if(!firebaseConnected && !initFirebase()){
-                console.log("Firebase tidak aktif, pakai localStorage");
-                return;
-            }
-            try {
-                // JenisKas
-                const docKas = await db.collection("config").doc("jenisKas").get();
-                if(docKas.exists && docKas.data().list){
-                    jenisKasList = docKas.data().list;
-                }
-                // Warga
-                const snapWarga = await db.collection("warga").get();
-                if(!snapWarga.empty){
-                    let cloudWarga = [];
-                    snapWarga.forEach(d=> cloudWarga.push(d.data()));
-                    // merge cloud + lokal (prioritas cloud untuk jenisKas, tapi data lengkap merge)
-                    let map = new Map();
-                    dataWarga.forEach(w=> map.set(String(w.id), w));
-                    cloudWarga.forEach(w=> { if(!map.has(String(w.id))) map.set(String(w.id), w); else map.set(String(w.id), {...map.get(String(w.id)), ...w}); });
-                    // Jika cloud ada, pakai cloud sebagai sumber utama
-                    if(cloudWarga.length > 0) dataWarga = bersihkanDataWarga(cloudWarga);
-                }
-                // Tagihan
-                const snapTagihan = await db.collection("tagihan").get();
-                if(!snapTagihan.empty){
-                    let cloudTagihan = [];
-                    snapTagihan.forEach(d=> cloudTagihan.push(d.data()));
-                    cloudTagihan = bersihkanDataTagihan(cloudTagihan.map(t=>({...t, periode: bersihkanFormatPeriode(t.periode)})));
-                    if(cloudTagihan.length > 0){
-                        // merge: cloud + lokal (prioritas cloud untuk update terbaru dari device lain)
-                        let map = new Map();
-                        cloudTagihan.forEach(t=> map.set(String(t.id), t));
-                        dataTagihan.forEach(t=> { if(!map.has(String(t.id))) map.set(String(t.id), t); });
-                        dataTagihan = Array.from(map.values());
-                    }
-                }
-                // Transaksi
-                const snapTrx = await db.collection("transaksi").get();
-                if(!snapTrx.empty){
-                    let cloudTrx = [];
-                    snapTrx.forEach(d=> cloudTrx.push(d.data()));
-                    cloudTrx = bersihkanDataTransaksi(cloudTrx);
-                    if(cloudTrx.length > 0){
-                        let map = new Map();
-                        cloudTrx.forEach(tr=> map.set(String(tr.id), tr));
-                        dataTransaksi.forEach(tr=> { if(!map.has(String(tr.id))) map.set(String(tr.id), tr); });
-                        dataTransaksi = Array.from(map.values());
-                    }
-                }
-                simpanLocalState();
-                refreshDropdowns();
-                renderJenisKasList();
-                renderWargaList();
-                renderTagihan();
-                renderRiwayatTransaksi();
-                updateDashboardView();
-                console.log("✅ Firebase sync selesai");
-                isDataLoaded = true;
-                const btnGen2 = document.getElementById('btn-generate-warga');
-                if(btnGen2){ btnGen2.disabled = false; btnGen2.innerText = "⚡ Generate"; btnGen2.classList.remove('opacity-50','cursor-not-allowed'); }
-                // Validasi: cek warga dengan nominal 0
-                const wargaNol = dataWarga.filter(w => (w.status==="Tetap"||w.status==="Kontrak") && (!w.nominal || Number(w.nominal)===0));
-                if(wargaNol.length>0) console.warn("⚠️ Ada warga Tetap/Kontrak nominal 0:", wargaNol.map(w=>w.blok).join(", "));
-
-                // Realtime listener (opsional): update otomatis jika ada perubahan di device lain
-                db.collection("config").doc("jenisKas").onSnapshot(doc=>{
-                    if(doc.exists && doc.data().list){
-                        let newList = doc.data().list;
-                        if(JSON.stringify(newList) !== JSON.stringify(jenisKasList)){
-                            jenisKasList = newList;
-                            simpanLocalState(); refreshDropdowns(); renderJenisKasList();
-                        }
-                    }
-                });
-
-            } catch(e){
-                console.log("Firebase sync error, pakai cache lokal:", e);
-            }
-        }
-
-        async function tarikDataDariCloudManual() {
-            if(!isAdminLoggedIn) return;
-            if(!firebaseConnected && !initFirebase()) return alert("Hubungkan Firebase dulu!");
-            if(!confirm("Tarik ulang seluruh data dari Firebase? Data lokal akan digabung dengan cloud.")) return;
-            try {
-                const docKas = await db.collection("config").doc("jenisKas").get();
-                if(docKas.exists) jenisKasList = docKas.data().list;
-                const snapWarga = await db.collection("warga").get();
-                if(!snapWarga.empty){ let arr=[]; snapWarga.forEach(d=>arr.push(d.data())); dataWarga = bersihkanDataWarga(arr); }
-                const snapTagihan = await db.collection("tagihan").get();
-                if(!snapTagihan.empty){ let arr=[]; snapTagihan.forEach(d=>arr.push(d.data())); dataTagihan = bersihkanDataTagihan(arr); }
-                const snapTrx = await db.collection("transaksi").get();
-                if(!snapTrx.empty){ let arr=[]; snapTrx.forEach(d=>arr.push(d.data())); dataTransaksi = bersihkanDataTransaksi(arr); }
-                simpanLocalState();
-                refreshDropdowns(); renderJenisKasList(); renderWargaList(); renderTagihan(); renderRiwayatTransaksi(); updateDashboardView();
-                alert("✅ Berhasil tarik data terbaru dari Firebase!");
-            } catch(e){ alert("Gagal tarik Firebase: " + e.message); }
-        }
-
-        window.onload = function() {
-            try {
-                dataWarga = bersihkanDataWarga(dataWarga);
-                dataTagihan = bersihkanDataTagihan(dataTagihan);
-                dataTransaksi = bersihkanDataTransaksi(dataTransaksi);
-                simpanLocalState();
-
-                const hariIni = new Date().toISOString().split('T')[0];
-                document.getElementById('man-masuk-tgl').value = hariIni;
-                document.getElementById('out-tgl').value = hariIni;
-                document.getElementById('pdf-tgl-mulai').value = hariIni;
-                document.getElementById('pdf-tgl-selesai').value = hariIni;
-
-                initFirebase();
-                // FIX4: kunci Generate sampai data siap
-                const btnGen = document.getElementById('btn-generate-warga');
-                if(btnGen){ btnGen.disabled = true; btnGen.innerText = "⏳ Loading..."; btnGen.classList.add('opacity-50','cursor-not-allowed'); }
-                refreshDropdowns();
-                setupUIMode(); 
-                renderJenisKasList(); 
-                renderWargaList(); 
-                renderTagihan(); 
-                renderRiwayatTransaksi(); 
-                updateDashboardView();
-
-                autoTarikDataDariCloud();
-            } catch(err) { console.error("Error init:", err); }
-        };
-
-        function setupUIMode() {
-            const badgeStatus = document.getElementById('badge-status-mode');
-            const btnLoginLogout = document.getElementById('btn-login-logout');
-            const panelAdmin = document.getElementById('panel-admin-container');
-            const btnGenWarga = document.getElementById('btn-generate-warga');
-            const thAksiTagihan = document.getElementById('th-aksi-tagihan');
-            const thAksiTransaksi = document.getElementById('th-aksi-transaksi');
-            const thCheckboxAll = document.getElementById('th-checkbox-all');
-            const containerBtnHapus = document.getElementById('container-btn-hapus-terpilih');
-
-            if (isAdminLoggedIn) {
-                badgeStatus.className = "bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded-lg font-bold";
-                badgeStatus.innerText = "🛡️ Mode Admin (Full Access)";
-                btnLoginLogout.innerText = "🔒 Logout Admin";
-                btnLoginLogout.className = "bg-red-600 hover:bg-red-700 text-white px-3.5 py-1.5 rounded-lg text-xs font-bold transition shadow-sm";
-                panelAdmin.classList.remove('hidden');
-                btnGenWarga.classList.remove('hidden');
-                thAksiTagihan.classList.remove('hidden');
-                thAksiTransaksi.classList.remove('hidden');
-                if(thCheckboxAll) thCheckboxAll.classList.remove('hidden');
-                if(containerBtnHapus) containerBtnHapus.classList.remove('hidden');
-            } else {
-                badgeStatus.className = "bg-blue-100 text-blue-700 px-3 py-1.5 rounded-lg font-bold";
-                badgeStatus.innerText = "👤 Mode Warga (Public)";
-                btnLoginLogout.innerText = "🔐 Login Admin";
-                btnLoginLogout.className = "bg-slate-900 hover:bg-slate-800 text-white px-3.5 py-1.5 rounded-lg text-xs font-bold transition shadow-sm";
-                panelAdmin.classList.add('hidden');
-                btnGenWarga.classList.add('hidden');
-                thAksiTagihan.classList.add('hidden');
-                thAksiTransaksi.classList.add('hidden');
-                if(thCheckboxAll) thCheckboxAll.classList.add('hidden');
-                if(containerBtnHapus) containerBtnHapus.classList.add('hidden');
-            }
-        }
-
-        function toggleModal(modalId, action) {
-            const el = document.getElementById(modalId);
-            if(!el) return;
-            if(action === 'open') {
-                el.classList.remove('hidden');
-                setTimeout(() => {
-                    const overlay = el.querySelector('.modal-overlay');
-                    const content = el.querySelector('.modal-content');
-                    if(overlay) overlay.classList.remove('opacity-0');
-                    if(content) content.classList.remove('opacity-0', 'translate-y-4');
-                }, 10);
-            } else {
-                const overlay = el.querySelector('.modal-overlay');
-                const content = el.querySelector('.modal-content');
-                if(overlay) overlay.classList.add('opacity-0');
-                if(content) content.classList.add('opacity-0', 'translate-y-4');
-                setTimeout(() => el.classList.add('hidden'), 300);
-            }
-        }
-
-        const bukaModalKas = () => { if(isAdminLoggedIn){ resetFormKas(); toggleModal('modal-kas', 'open'); } };
-        const tutupModalKas = () => toggleModal('modal-kas', 'close');
-        
-        const bukaModalWarga = () => { 
-            if(!isAdminLoggedIn) { alert("Akses ditolak!"); return; }
-            resetFormWarga(); toggleModal('modal-warga', 'open'); 
-        };
-        const tutupModalWarga = () => toggleModal('modal-warga', 'close');
-        
-        const bukaModalGenerateTagihan = () => {
-            if(!isAdminLoggedIn) return;
-            const elPeriode = document.getElementById('pilih-bulan-filter');
-            const elGenPeriode = document.getElementById('gen-periode');
-            if(elPeriode && elGenPeriode) elGenPeriode.value = elPeriode.value;
-
-            const selectGenKas = document.getElementById('gen-jeniskas');
-            if(selectGenKas) {
-                selectGenKas.innerHTML = '';
-                jenisKasList.forEach(k => selectGenKas.innerHTML += `<option value="${k}">${k}</option>`);
-                selectGenKas.value = kasAktifFilter !== "SEMUA" ? kasAktifFilter : jenisKasList[0];
-            }
-            toggleModal('modal-generate-tagihan', 'open');
-        };
-        const tutupModalGenerateTagihan = () => toggleModal('modal-generate-tagihan', 'close');
-        
-        const bukaModalEditNominalTagihan = (id) => {
-            if(!isAdminLoggedIn) return;
-            const tagihan = dataTagihan.find(t => String(t.id) === String(id));
-            if(!tagihan) return alert("Data tagihan tidak ditemukan!");
-            document.getElementById('edit-tagihan-id').value = tagihan.id;
-            document.getElementById('edit-tagihan-info').value = `${tagihan.nama} (${tagihan.blok}) - ${tagihan.jenisKas}`;
-            document.getElementById('edit-tagihan-nominal-input').value = tagihan.nominal;
-            toggleModal('modal-edit-nominal', 'open');
-        };
-        const tutupModalEditNominalTagihan = () => toggleModal('modal-edit-nominal', 'close');
-
-        function simpanPerubahanNominalTagihan() {
-            if(!isAdminLoggedIn) return;
-            const id = document.getElementById('edit-tagihan-id').value;
-            const nominalBaru = parseInt(document.getElementById('edit-tagihan-nominal-input').value) || 0;
-            if(nominalBaru < 0) return alert("Nominal tidak boleh negatif!");
-            let tagihan = dataTagihan.find(t => String(t.id) === String(id));
-            if(!tagihan) return alert("Data tagihan tidak ditemukan!");
-
-            tagihan.nominal = nominalBaru;
-            if(tagihan.status === "LUNAS") {
-                let trx = dataTransaksi.find(tr => String(tr.tagihanId) === String(tagihan.id));
-                if(trx) { trx.nominal = nominalBaru; }
-            }
-            simpanLocalState(); tutupModalEditNominalTagihan();
-            renderTagihan(); renderRiwayatTransaksi(); updateDashboardView();
-            alert("Nominal tagihan diperbarui!");
-        }
-
-        const bukaModalMasukManual = () => { if(isAdminLoggedIn) toggleModal('modal-masuk-manual', 'open'); };
-        const tutupModalMasukManual = () => toggleModal('modal-masuk-manual', 'close');
-        const bukaModalKeluar = () => { if(isAdminLoggedIn) toggleModal('modal-keluar', 'open'); };
-        const tutupModalKeluar = () => toggleModal('modal-keluar', 'close');
-
-        const bukaModalPdf = () => {
-            const selectPdfKas = document.getElementById('pdf-jeniskas');
-            if(selectPdfKas) {
-                selectPdfKas.innerHTML = '';
-                if (isAdminLoggedIn) {
-                    selectPdfKas.innerHTML += `<option value="SEMUA">📂 Semua Jenis Kas (Keseluruhan)</option>`;
-                }
-                jenisKasList.forEach(k => { selectPdfKas.innerHTML += `<option value="${k}">${k}</option>`; });
-            }
-            gantiJenisLaporanPdf(document.getElementById('pdf-jenis-laporan').value);
-            toggleModal('modal-pdf', 'open');
-        };
-        const tutupModalPdf = () => toggleModal('modal-pdf', 'close');
-
-        function gantiJenisLaporanPdf(tipe) {
-            const filterTransaksi = document.getElementById('container-filter-transaksi');
-            const filterTagihan = document.getElementById('container-filter-tagihan');
-            if (tipe === 'TRANSAKSI') {
-                filterTransaksi.classList.remove('hidden');
-                filterTagihan.classList.add('hidden');
-            } else {
-                filterTransaksi.classList.add('hidden');
-                filterTagihan.classList.remove('hidden');
-            }
-        }
-
-        function bukaLightbox(url) {
-            if (url && url !== "-") {
-                window.open(url, '_blank');
-            } else {
-                alert("Tidak ada bukti nota untuk transaksi ini.");
-            }
-        }
-
-        function refreshDropdowns() {
-            const menuSelect = document.getElementById('pilih-kas-menu');
-            const selectWarga = document.getElementById('w-jeniskas');
-            const selectManMasuk = document.getElementById('man-masuk-kas');
-            const selectOut = document.getElementById('out-jeniskas');
-
-            let currentVal = menuSelect ? menuSelect.value : kasAktifFilter;
-            if(menuSelect) {
-                menuSelect.innerHTML = '';
-                if (isAdminLoggedIn) menuSelect.innerHTML += `<option value="SEMUA">📂 Tampilkan Semua Kas</option>`;
-                jenisKasList.forEach(k => { menuSelect.innerHTML += `<option value="${k}">${k}</option>`; });
-            }
-            if(selectWarga) selectWarga.innerHTML = ''; 
-            if(selectManMasuk) selectManMasuk.innerHTML = ''; 
-            if(selectOut) selectOut.innerHTML = '';
-
-            jenisKasList.forEach(k => {
-                if(selectWarga) selectWarga.innerHTML += `<option value="${k}">${k}</option>`;
-                if(selectManMasuk) selectManMasuk.innerHTML += `<option value="${k}">${k}</option>`;
-                if(selectOut) selectOut.innerHTML += `<option value="${k}">${k}</option>`;
-            });
-
-            if (!isAdminLoggedIn && (currentVal === "SEMUA" || !jenisKasList.includes(currentVal))) {
-                currentVal = jenisKasList[0] || "Kas Bulanan";
-                kasAktifFilter = currentVal;
-            }
-            if(menuSelect) menuSelect.value = currentVal;
-        }
-
-        function gantiFilterKas(nilai) {
-            if (!isAdminLoggedIn && nilai === "SEMUA") { nilai = jenisKasList[0] || "Kas Bulanan"; }
-            kasAktifFilter = nilai; halamanAktifTagihan = 1; halamanAktifTransaksi = 1;
-            const judul = document.getElementById('judul-kas-aktif');
-            if(judul) judul.innerText = nilai === "SEMUA" ? "Semua Jenis Kas" : nilai;
-            updateDashboardView(); renderTagihan(); renderRiwayatTransaksi();
-        }
-
-        function gantiBulanFilter() { halamanAktifTagihan = 1; renderTagihan(); }
-
-        function resetFormKas() {
-            if(!isAdminLoggedIn) return;
-            document.getElementById('edit-index-kas').value = "";
-            document.getElementById('input-nama-kas').value = "";
-            document.getElementById('btn-simpan-kas').innerText = "+ Tambah Jenis Kas";
-        }
-
-        async function syncJenisKasKeCloud() {
-            if(!isAdminLoggedIn) return;
-            if(!firebaseConnected && !initFirebase()) return console.log("Firebase belum siap, jenisKas cuma lokal");
-            try {
-                await db.collection("config").doc("jenisKas").set({list: jenisKasList, updatedAt: firebase.firestore.FieldValue.serverTimestamp()});
-                console.log("✅ Jenis Kas synced ke Firebase:", jenisKasList);
-            } catch(e){ console.error("Gagal sync Jenis Kas:", e); }
-        }
-
-        function simpanJenisKas() {
-            if(!isAdminLoggedIn) return;
-            const inputEl = document.getElementById('input-nama-kas');
-            if(!inputEl) return;
-            const namaBaru = inputEl.value.trim();
-            const editIndex = document.getElementById('edit-index-kas').value;
-            if(!namaBaru) return alert("Nama kas kosong!");
-
-            if(editIndex === "") {
-                if(jenisKasList.includes(namaBaru)) return alert("Kas sudah ada!");
-                jenisKasList.push(namaBaru); 
-                alert(`Jenis kas "${namaBaru}" berhasil ditambahkan!`);
-            } else {
-                jenisKasList[editIndex] = namaBaru; alert("Jenis kas berhasil diperbarui!"); resetFormKas();
-            }
-            inputEl.value = ''; 
-            simpanLocalState(); 
-            refreshDropdowns(); 
-            renderJenisKasList();
-            syncJenisKasKeCloud(); // <--- FIX: langsung sync ke GAS
-        }
-
-        function renderJenisKasList() {
-            const tbody = document.getElementById('tabel-jenis-kas-list');
-            if(!tbody) return;
-            tbody.innerHTML = '';
-            jenisKasList.forEach((k, index) => {
-                let actionTd = isAdminLoggedIn ? `<td class="py-2.5 px-3 text-right space-x-1"><button onclick="editJenisKas(${index})" class="text-blue-600 font-bold bg-blue-50 px-2 py-1 rounded">Edit</button><button onclick="hapusJenisKas(${index})" class="text-red-600 font-bold bg-red-50 px-2 py-1 rounded">Hapus</button></td>` : '';
-                tbody.innerHTML += `<tr class="border-b hover:bg-slate-50"><td class="py-2.5 px-3 font-bold">${k}</td>${actionTd}</tr>`;
-            });
-        }
-        function editJenisKas(index) {
-            if(!isAdminLoggedIn) return;
-            document.getElementById('edit-index-kas').value = index;
-            document.getElementById('input-nama-kas').value = jenisKasList[index];
-            document.getElementById('btn-simpan-kas').innerText = "💾 Perbarui Kas";
-        }
-        function hapusJenisKas(index) {
-            if(!isAdminLoggedIn) return;
-            const nama = jenisKasList[index];
-            if(!confirm(`Hapus jenis kas "${nama}"? Tagihan terkait tidak akan terhapus tapi tidak tampil di filter.`)) return;
-            jenisKasList.splice(index, 1);
-            simpanLocalState();
-            refreshDropdowns();
-            renderJenisKasList();
-            syncJenisKasKeCloud();
-            alert(`Jenis kas "${nama}" dihapus & synced ke Cloud`);
-        }
-
-        function resetFormWarga() {
-            if(!isAdminLoggedIn) return;
-            document.getElementById('edit-id-warga').value = "";
-            document.getElementById('w-nama').value = "";
-            document.getElementById('w-blok').value = "";
-            document.getElementById('w-hp').value = "";
-            document.getElementById('w-status').value = "Tetap";
-            document.getElementById('w-nominal').value = "20000";
-        }
-
-        function simpanWargaData() {
-            if(!isAdminLoggedIn) { alert("Akses ditolak!"); return; }
-            const editId = document.getElementById('edit-id-warga').value;
-            const nama = document.getElementById('w-nama').value.trim();
-            const blok = document.getElementById('w-blok').value.trim();
-            const hp = document.getElementById('w-hp').value.trim() || "-";
-            const status = document.getElementById('w-status').value;
-            const nominal = parseInt(document.getElementById('w-nominal').value) || 0;
-            const jenisKas = document.getElementById('w-jeniskas').value;
-
-            if(!nama || !blok) return alert("Isi Nama dan Blok!");
-            if((status==="Tetap" || status==="Kontrak") && (!nominal || nominal<=0)){
-                return alert("❌ Warga Tetap/Kontrak tidak boleh nominal Rp 0! Isi nominal >0 atau ganti status jadi Pengurus/Rumah Kosong/Pindah.");
-            }
-
-            let dataObj = editId === "" ? 
-                { id: String(Date.now()), nama: nama.toUpperCase(), blok, hp, status, nominal, jenisKas } :
-                { id: String(editId), nama: nama.toUpperCase(), blok, hp, status, nominal, jenisKas };
-
-            if(editId === "") dataWarga.push(dataObj);
-            else dataWarga = dataWarga.map(w => String(w.id) === String(dataObj.id) ? dataObj : w);
-
-            dataWarga = bersihkanDataWarga(dataWarga);
-            simpanLocalState(); resetFormWarga(); renderWargaList();
-            
-            // Sync ke Firebase (single doc)
-            if(firebaseConnected) syncWargaKeCloudSingle(dataObj);
-
-            tulisLog("TAMBAH/EDIT_WARGA", `${dataObj.nama} Blok ${dataObj.blok} - ${dataObj.status} Rp ${dataObj.nominal}`);
-            alert("Data warga berhasil disimpan! (Firebase)");
-        }
-
-        function renderWargaList() {
-            const tbody = document.getElementById('tabel-warga-list');
-            const count = document.getElementById('count-warga');
-            if(count) count.innerText = dataWarga.length;
-            if(!tbody) return;
-            tbody.innerHTML = '';
-
-            const inputCari = document.getElementById('cari-warga');
-            const keyword = inputCari ? inputCari.value.toLowerCase().trim() : "";
-
-            const filtered = dataWarga.filter(w => {
-                if(!keyword) return true;
-                return (w.nama||'').toLowerCase().includes(keyword) || (w.blok||'').toLowerCase().includes(keyword) ||
-                       (w.status||'').toLowerCase().includes(keyword) || (w.nominal||0).toString().includes(keyword) || (w.jenisKas||'').toLowerCase().includes(keyword);
-            });
-
-            const totalData = filtered.length;
-            const totalHalaman = Math.ceil(totalData / itemPerHalamanWarga) || 1;
-            if(halamanAktifWarga > totalHalaman) halamanAktifWarga = totalHalaman;
-            if(halamanAktifWarga < 1) halamanAktifWarga = 1;
-
-            if(totalData === 0) {
-                tbody.innerHTML = `<tr><td colspan="3" class="text-center py-5 text-slate-400">Data warga tidak ditemukan.</td></tr>`;
-                document.getElementById('info-pagination-warga').innerText = `0-0 dari 0`;
-                document.getElementById('teks-halaman-warga').innerText = `Hal 1/1`;
-                return;
-            }
-
-            const mulaiIndex = (halamanAktifWarga - 1) * itemPerHalamanWarga;
-            const dataPaginated = filtered.slice(mulaiIndex, mulaiIndex + itemPerHalamanWarga);
-
-            dataPaginated.forEach(w => {
-                let badgeStatusWarga = "";
-                if (w.status === "Pengurus (Gratis)") badgeStatusWarga = `<span class="bg-purple-100 text-purple-700 font-bold text-[9px] px-2 py-0.5 rounded-full">🛡️ Pengurus (Gratis)</span>`;
-                else if (w.status === "Rumah Kosong") badgeStatusWarga = `<span class="bg-amber-100 text-amber-700 font-bold text-[9px] px-2 py-0.5 rounded-full">🏠 Rumah Kosong</span>`;
-                else if (w.status === "Pindah") badgeStatusWarga = `<span class="bg-red-100 text-red-600 font-bold text-[9px] px-2 py-0.5 rounded-full">🚪 Pindah</span>`;
-                else badgeStatusWarga = `<span class="bg-blue-50 text-blue-600 font-bold text-[9px] px-2 py-0.5 rounded-full">Warga ${w.status}</span>`;
-
-                let actionTd = isAdminLoggedIn ? `<td class="py-2.5 px-3 text-right space-x-1"><button onclick="editWargaData('${w.id}')" class="text-blue-600 font-bold bg-blue-50 px-2 py-1 rounded">Edit</button><button onclick="hapusWargaData('${w.id}')" class="text-red-600 font-bold bg-red-50 px-2 py-1 rounded">Hapus</button></td>` : '';
-                tbody.innerHTML += `
-                    <tr class="hover:bg-slate-50">
-                        <td class="py-2.5 px-3"><b>${w.nama}</b><br><span class="text-[10px] text-slate-400">Blok: ${w.blok} | </span> ${badgeStatusWarga}</td>
-                        <td class="py-2.5 px-3">Rp ${(w.nominal||0).toLocaleString('id-ID')}</td>
-                        ${actionTd}
-                    </tr>`;
-            });
-
-            document.getElementById('info-pagination-warga').innerText = `${mulaiIndex + 1}-${Math.min(mulaiIndex + itemPerHalamanWarga, totalData)} dari ${totalData}`;
-            document.getElementById('teks-halaman-warga').innerText = `Hal ${halamanAktifWarga}/${totalHalaman}`;
-            document.getElementById('btn-prev-warga').disabled = halamanAktifWarga === 1;
-            document.getElementById('btn-next-warga').disabled = halamanAktifWarga === totalHalaman;
-        }
-
-        function gantiPencarianWarga() { halamanAktifWarga = 1; renderWargaList(); }
-        function gantiHalamanWarga(arah) { halamanAktifWarga += arah; renderWargaList(); }
-
-        function editWargaData(id) {
-            if(!isAdminLoggedIn) return;
-            const w = dataWarga.find(x => String(x.id) === String(id));
-            if(!w) return;
-            document.getElementById('edit-id-warga').value = w.id;
-            document.getElementById('w-nama').value = w.nama;
-            document.getElementById('w-blok').value = w.blok;
-            document.getElementById('w-hp').value = w.hp;
-            document.getElementById('w-status').value = w.status || "Tetap";
-            document.getElementById('w-nominal').value = w.nominal;
-            document.getElementById('w-jeniskas').value = w.jenisKas;
-        }
-
-        function hapusWargaData(id) {
-            if(!isAdminLoggedIn) return;
-            if(confirm("Hapus data warga ini?")) {
-                dataWarga = dataWarga.filter(w => String(w.id) !== String(id));
-                dataWarga = bersihkanDataWarga(dataWarga);
-                simpanLocalState();
-                renderWargaList();
-            }
-        }
-
-        function prosesGenerateTagihanCustom() {
-            if(!isAdminLoggedIn) return;
-            if(!isDataLoaded){
-                return alert("⏳ Data warga belum selesai loading dari Firebase! Tunggu sampai 'Firebase sync selesai' di Console, lalu coba lagi.");
-            }
-            if(dataWarga.length===0){
-                return alert("❌ Data warga kosong! Tidak bisa Generate. Cek Firestore → warga.");
-            }
-            const jenisKasPilihan = document.getElementById('gen-jeniskas').value;
-            const periodePilihan = bersihkanFormatPeriode(document.getElementById('gen-periode').value);
-            const nominalCustom = parseInt(document.getElementById('gen-nominal').value) || 20000;
-
-            if(!nominalCustom) return alert("Nominal tidak valid!");
-            if(!dataWarga || dataWarga.length === 0) return alert("Data warga kosong.");
-
-            kasAktifFilter = jenisKasPilihan;
-            const menuSelect = document.getElementById('pilih-kas-menu');
-            if(menuSelect) menuSelect.value = jenisKasPilihan;
-            
-            const filterBulan = document.getElementById('pilih-bulan-filter');
-            if(filterBulan) filterBulan.value = periodePilihan;
-
-            const judul = document.getElementById('judul-kas-aktif');
-            if(judul) judul.innerText = jenisKasPilihan;
-
-            // Validasi: cari warga Tetap/Kontrak nominal 0 -> skip dan warning
-            const wargaInvalid = dataWarga.filter(w => (w.status==="Tetap"||w.status==="Kontrak") && (!w.nominal || Number(w.nominal)===0));
-            if(wargaInvalid.length>0){
-                if(!confirm(`⚠️ Ada ${wargaInvalid.length} warga Tetap/Kontrak dengan nominal Rp 0 (Blok: ${wargaInvalid.map(w=>w.blok).join(", ")}).\nMereka akan DILEWATI tidak dibuatkan tagihan.\nLanjutkan Generate?`)) return;
-            }
-            // Lock: cek apakah tagihan periode ini sudah ada
-            const existingForPeriode = dataTagihan.filter(t => t.periode===periodePilihan && t.jenisKas===jenisKasPilihan);
-            if(existingForPeriode.length>0){
-                if(!confirm(`⚠️ Tagihan ${periodePilihan} - ${jenisKasPilihan} sudah ada ${existingForPeriode.length} data.\nGenerate ulang akan REPLACE (update nominal) bukan duplikat.\nLanjutkan?`)) return;
-            }
-            let countGenerated = 0;
-            let countSkipped = 0;
-            dataWarga.forEach(w => {
-                if(!w || !w.id) return;
-                if (w.status === "Pengurus (Gratis)" || w.status === "Rumah Kosong" || w.status === "Pindah") { countSkipped++; return; }
-                if ((w.status==="Tetap"||w.status==="Kontrak") && (!w.nominal || Number(w.nominal)===0)) { countSkipped++; return; }
-
-                let cleanPeriode = String(periodePilihan).replace(/\s+/g, '');
-                let cleanKas = String(jenisKasPilihan).replace(/\s+/g, '');
-                let uniqueTagihanId = `T_${w.id}_${cleanPeriode}_${cleanKas}`;
-
-                const existingIndex = dataTagihan.findIndex(t => String(t.id) === String(uniqueTagihanId));
-                let sudahBayar = dataTransaksi.find(tr => {
-                    if(!tr || !tr.keterangan) return false;
-                    let matchTrxKas = tr.jenisKas && String(tr.jenisKas).trim().toLowerCase() === String(jenisKasPilihan).trim().toLowerCase();
-                    return String(tr.tagihanId) === String(uniqueTagihanId) || (matchTrxKas && tr.keterangan.includes(w.nama) && tr.keterangan.includes(periodePilihan));
-                });
-
-                if(existingIndex >= 0) {
-                    dataTagihan[existingIndex].nominal = nominalCustom;
-                    dataTagihan[existingIndex].jenisKas = jenisKasPilihan;
-                    dataTagihan[existingIndex].periode = periodePilihan;
-                    if(sudahBayar) dataTagihan[existingIndex].status = "LUNAS";
-                } else {
-                    dataTagihan.push({
-                        id: uniqueTagihanId, wargaId: String(w.id), nama: w.nama, blok: w.blok,
-                        periode: periodePilihan, jenisKas: jenisKasPilihan, nominal: nominalCustom,
-                        status: sudahBayar ? "LUNAS" : "BELUM"
-                    });
-                }
-                countGenerated++;
-            });
-
-            dataTagihan = bersihkanDataTagihan(dataTagihan);
-            simpanLocalState(); 
-            tutupModalGenerateTagihan(); 
-            halamanAktifTagihan = 1;
-            renderTagihan(); renderWargaList(); updateDashboardView();
-
-            if(firebaseConnected) syncTagihanKeCloudIncremental();
-
-            tulisLog("GENERATE_TAGIHAN", `${periodePilihan} - ${jenisKasPilihan} Rp ${nominalCustom} | Generate ${countGenerated} warga, skip ${countSkipped}`);
-            alert(`Selesai! Tagihan berhasil digenerate (${countGenerated} warga, skip ${countSkipped}) & sync ke Firebase.`);
-        }
-
-        async function hapusTagihan(id) {
-            if(!isAdminLoggedIn) return;
-            if(confirm("Yakin ingin menghapus tagihan iuran ini?")) {
-                dataTagihan = dataTagihan.filter(t => String(t.id) !== String(id));
-                dataTagihan = bersihkanDataTagihan(dataTagihan);
-                simpanLocalState();
-                renderTagihan();
-                if(firebaseConnected){
-                    try{ await db.collection("tagihan").doc(String(id)).delete(); }catch(e){ console.log(e); }
-                }
-            }
-        }
-
-        function extractBlockNumber(blokStr) {
-            if (!blokStr) return 0;
-            const match = String(blokStr).replace(/\s+/g, '').match(/\d+/);
-            return match ? parseInt(match[0], 10) : 0;
-        }
-
-        function renderTagihan() {
-            const elBulan = document.getElementById('pilih-bulan-filter');
-            const bulanPilih = elBulan ? elBulan.value : "";
-            const tbody = document.getElementById('tabel-tagihan-warga');
-            if(!tbody) return;
-            tbody.innerHTML = '';
-
-            const inputCari = document.getElementById('cari-tagihan');
-            const keyword = inputCari ? inputCari.value.toLowerCase().trim() : "";
-
-            const filtered = dataTagihan.filter(t => {
-                if(!t) return false;
-                t.periode = bersihkanFormatPeriode(t.periode);
-                let wargaM = dataWarga.find(w => String(w.id) === String(t.wargaId) || (w.nama === t.nama && w.blok === t.blok));
-                if (wargaM && (wargaM.status === "Pengurus (Gratis)" || wargaM.status === "Rumah Kosong" || wargaM.status === "Pindah")) return false;
-
-                const matchBulan = t.periode && (String(t.periode).trim().toLowerCase() === String(bulanPilih).trim().toLowerCase());
-                const matchKas = (kasAktifFilter === "SEMUA" || (t.jenisKas && String(t.jenisKas).trim().toLowerCase() === String(kasAktifFilter).trim().toLowerCase()));
-                if (!matchBulan || !matchKas) return false;
-                if (!keyword) return true;
-
-                return (t.nama||'').toLowerCase().includes(keyword) || (t.blok||'').toLowerCase().includes(keyword) ||
-                       (t.status||'').toLowerCase().includes(keyword) || (t.nominal||0).toString().includes(keyword) || (t.jenisKas||'').toLowerCase().includes(keyword);
-            });
-
-            filtered.sort((a, b) => {
-                const numA = extractBlockNumber(a.blok);
-                const numB = extractBlockNumber(b.blok);
-                if (numA !== numB) return numA - numB;
-                return String(a.blok || '').localeCompare(String(b.blok || ''));
-            });
-
-            const totalData = filtered.length;
-            const totalHalaman = Math.ceil(totalData / itemPerHalaman) || 1;
-            if(halamanAktifTagihan > totalHalaman) halamanAktifTagihan = totalHalaman;
-            if(halamanAktifTagihan < 1) halamanAktifTagihan = 1;
-
-            if(totalData === 0) {
-                let colspanVal = isAdminLoggedIn ? 5 : 4;
-                tbody.innerHTML = `<tr><td colspan="${colspanVal}" class="text-center py-5 text-slate-400">Tidak ada data tagihan. Silakan klik tombol <b>Generate</b> di atas.</td></tr>`;
-                const info = document.getElementById('info-pagination');
-                const teksHal = document.getElementById('teks-halaman-aktif');
-                if(info) info.innerText = `0-0 dari 0`; if(teksHal) teksHal.innerText = `Hal 1/1`;
-                return;
-            }
-
-            const mulaiIndex = (halamanAktifTagihan - 1) * itemPerHalaman;
-            const dataPaginated = filtered.slice(mulaiIndex, mulaiIndex + itemPerHalaman);
-
-            dataPaginated.forEach(t => {
-                let statusBadge = t.status === "LUNAS" ? 
-                    `<span class="bg-green-100 text-green-700 font-bold text-[10px] px-2.5 py-0.5 rounded-full">Lunas</span>` : 
-                    `<span class="bg-red-100 text-red-600 font-bold text-[10px] px-2.5 py-0.5 rounded-full">Belum</span>`;
-
-                let aksiTd = '';
-                if (isAdminLoggedIn) {
-                    let aksiBtn = t.status === "LUNAS" ?
-                        `<div class="flex items-center justify-center gap-1.5"><button onclick="ubahStatusTagihan('${t.id}', 'BELUM')" class="text-slate-400 text-[11px] underline">Batal</button><button onclick="bukaModalEditNominalTagihan('${t.id}')" class="bg-blue-50 hover:bg-blue-100 text-blue-600 font-bold px-2 py-1 rounded-lg text-[11px]">✏️ Edit</button><button onclick="hapusTagihan('${t.id}')" class="bg-red-50 hover:bg-red-100 text-red-600 font-bold px-2 py-1 rounded-lg text-[11px]">🗑️ Hapus</button></div>` :
-                        `<div class="flex items-center justify-center gap-1.5"><button onclick="ubahStatusTagihan('${t.id}', 'LUNAS')" class="bg-green-600 hover:bg-green-700 text-white text-[11px] font-bold px-2.5 py-1 rounded-lg">✔ Bayar</button><button onclick="bukaModalEditNominalTagihan('${t.id}')" class="bg-blue-50 hover:bg-blue-100 text-blue-600 font-bold px-2 py-1 rounded-lg text-[11px]">✏️ Edit</button><button onclick="hapusTagihan('${t.id}')" class="bg-red-50 hover:bg-red-100 text-red-600 font-bold px-2 py-1 rounded-lg text-[11px]">🗑️ Hapus</button></div>`;
-                    aksiTd = `<td class="py-2.5 px-3 text-center">${aksiBtn}</td>`;
-                }
-
-                tbody.innerHTML += `
-                    <tr class="hover:bg-slate-50 border-b border-slate-50">
-                        <td class="py-2.5 px-3"><b>${t.nama}</b><br><span class="text-[10px] text-slate-400">Blok: ${t.blok}</span></td>
-                        <td class="py-2.5 px-3">${t.jenisKas}</td>
-                        <td class="py-2.5 px-3 font-bold">Rp ${(t.nominal||0).toLocaleString('id-ID')}</td>
-                        <td class="py-2.5 px-3 text-center">${statusBadge}</td>
-                        ${aksiTd}
-                    </tr>`;
-            });
-
-            const info = document.getElementById('info-pagination');
-            const teksHal = document.getElementById('teks-halaman-aktif');
-            const btnPrev = document.getElementById('btn-prev');
-            const btnNext = document.getElementById('btn-next');
-
-            if(info) info.innerText = `${mulaiIndex + 1}-${Math.min(mulaiIndex + itemPerHalaman, totalData)} dari ${totalData}`;
-            if(teksHal) teksHal.innerText = `Hal ${halamanAktifTagihan}/${totalHalaman}`;
-            if(btnPrev) btnPrev.disabled = halamanAktifTagihan === 1;
-            if(btnNext) btnNext.disabled = halamanAktifTagihan === totalHalaman;
-        }
-
-        function gantiPencarianTagihan() { halamanAktifTagihan = 1; renderTagihan(); }
-        function gantiHalamanTagihan(arah) { halamanAktifTagihan += arah; renderTagihan(); }
-
-        async function ubahStatusTagihan(id, statusBaru) {
-            if(!isAdminLoggedIn) return;
-            let targetTagihan = dataTagihan.find(t => String(t.id) === String(id));
-            if(!targetTagihan) return;
-
-            targetTagihan.status = statusBaru;
-
-            tulisLog(statusBaru==="LUNAS"?"BAYAR_LUNAS":"BATAL_BAYAR", `${targetTagihan.nama} Blok ${targetTagihan.blok} - ${targetTagihan.periode} ${targetTagihan.jenisKas} Rp ${targetTagihan.nominal}`);
-            if(statusBaru === 'LUNAS') {
-                let trxObj = {
-                    id: String(Date.now() + Math.floor(Math.random() * 1000)), 
-                    tagihanId: String(targetTagihan.id), tipe: "MASUK", kategori: "Iuran Warga",
-                    jenisKas: targetTagihan.jenisKas, nominal: targetTagihan.nominal,
-                    keterangan: `Iuran ${targetTagihan.nama} (Blok ${targetTagihan.blok}) - ${targetTagihan.periode} - ${targetTagihan.jenisKas}`,
-                    tanggal: new Date().toISOString().split('T')[0], bukti: "-"
-                };
-                dataTransaksi = dataTransaksi.filter(tr => String(tr.tagihanId) !== String(targetTagihan.id));
-                dataTransaksi.push(trxObj);
-            } else {
-                dataTransaksi = dataTransaksi.filter(tr => String(tr.tagihanId) !== String(targetTagihan.id));
-            }
-            dataTagihan = bersihkanDataTagihan(dataTagihan);
-            dataTransaksi = bersihkanDataTransaksi(dataTransaksi);
-            simpanLocalState(); renderTagihan(); renderRiwayatTransaksi(); updateDashboardView();
-
-            if(firebaseConnected){
-                try{
-                    await db.collection("tagihan").doc(String(targetTagihan.id)).set(targetTagihan, {merge:true});
-                    // transaksi juga sudah di syncTransaksiKeCloudClean
-                }catch(e){ console.log(e); }
-            }
-            syncTransaksiKeCloudClean();
-        }
-
-        function simpanPemasukanManual() {
-            if(!isAdminLoggedIn) return;
-            const jenisKas = document.getElementById('man-masuk-kas').value;
-            const nominal = parseInt(document.getElementById('man-masuk-nominal').value) || 0;
-            const keterangan = document.getElementById('man-masuk-ket').value;
-            const tanggal = document.getElementById('man-masuk-tgl').value;
-            if(!nominal || !keterangan) return alert("Isi form dengan lengkap!");
-
-            let newTrx = { id: String(Date.now() + Math.floor(Math.random() * 1000)), tipe: "MASUK", kategori: "Pemasukan Manual", jenisKas, nominal, keterangan, tanggal, bukti: "-" };
-            dataTransaksi.push(newTrx);
-            dataTransaksi = bersihkanDataTransaksi(dataTransaksi);
-            simpanLocalState(); tutupModalMasukManual(); updateDashboardView(); renderRiwayatTransaksi();
-            
-            syncTransaksiKeCloudClean();
-
-            alert("Pemasukan manual berhasil dicatat!");
-        }
-
-        function simpanPengeluaran() {
-            if(!isAdminLoggedIn) return;
-            const jenisKas = document.getElementById('out-jeniskas').value;
-            const nominal = parseInt(document.getElementById('out-nominal').value) || 0;
-            const keterangan = document.getElementById('out-ket').value;
-            const tanggal = document.getElementById('out-tgl').value;
-            const fileInput = document.getElementById('out-bukti');
-
-            if(!nominal || !keterangan) return alert("Isi form pengeluaran!");
-            if(!fileInput || fileInput.files.length === 0) return alert("Wajib upload nota!");
-
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const img = new Image(); img.src = e.target.result;
-                img.onload = function() {
-                    const canvas = document.createElement('canvas');
-                    let width = img.width; let height = img.height; const maxDim = 1000;
-                    if (width > height) { if (width > maxDim) { height *= maxDim / width; width = maxDim; } } 
-                    else { if (height > maxDim) { width *= maxDim / height; height = maxDim; } }
-                    canvas.width = width; canvas.height = height;
-                    const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, width, height);
-                    const sharpBase64 = canvas.toDataURL('image/jpeg', 0.85);
-
-                    let newTrx = { id: String(Date.now() + Math.floor(Math.random() * 1000)), tipe: "KELUAR", kategori: "Pengeluaran", jenisKas, nominal, keterangan, tanggal, bukti: sharpBase64, fileName: fileInput.files[0].name };
-                    dataTransaksi.push(newTrx);
-                    dataTransaksi = bersihkanDataTransaksi(dataTransaksi);
-                    simpanLocalState(); tutupModalKeluar(); updateDashboardView(); renderRiwayatTransaksi();
-                    
-                    syncTransaksiKeCloudClean();
-
-                    alert("Pengeluaran berhasil dicatat!");
-                };
-            };
-            reader.readAsDataURL(fileInput.files[0]);
-        }
-
-        function renderRiwayatTransaksi() {
-            const tbody = document.getElementById('tabel-riwayat-transaksi');
-            if(!tbody) return;
-            tbody.innerHTML = '';
-
-            const inputCari = document.getElementById('cari-transaksi');
-            const keyword = inputCari ? inputCari.value.toLowerCase().trim() : "";
-
-            const filtered = dataTransaksi.filter(t => {
-                if(!t) return false;
-                const matchKas = (kasAktifFilter === "SEMUA" || (t.jenisKas && String(t.jenisKas).trim().toLowerCase() === String(kasAktifFilter).trim().toLowerCase()));
-                if (!matchKas) return false;
-                if (!keyword) return true;
-                return (t.keterangan || "").toLowerCase().includes(keyword) || (t.kategori || "").toLowerCase().includes(keyword) ||
-                       (t.jenisKas || "").toLowerCase().includes(keyword) || (t.nominal || 0).toString().includes(keyword) || (t.tanggal || "").includes(keyword);
-            });
-
-            filtered.sort((a, b) => Number(b.id) - Number(a.id));
-
-            const totalData = filtered.length;
-            const totalHalaman = Math.ceil(totalData / itemPerHalamanTransaksi) || 1;
-            if(halamanAktifTransaksi > totalHalaman) halamanAktifTransaksi = totalHalaman;
-            if(halamanAktifTransaksi < 1) halamanAktifTransaksi = 1;
-
-            if(totalData === 0) {
-                let colspanVal = isAdminLoggedIn ? 7 : 5;
-                tbody.innerHTML = `<tr><td colspan="${colspanVal}" class="text-center py-5 text-slate-400">Tidak ada data transaksi.</td></tr>`;
-                document.getElementById('info-pagination-transaksi').innerText = `Menampilkan 0-0 dari 0 data`;
-                document.getElementById('teks-halaman-aktif-transaksi').innerText = `Hal 1/1`;
-                document.getElementById('btn-prev-transaksi').disabled = true; document.getElementById('btn-next-transaksi').disabled = true;
-                updateSelectedCount();
-                return;
-            }
-
-            const mulaiIndex = (halamanAktifTransaksi - 1) * itemPerHalamanTransaksi;
-            const dataPaginated = filtered.slice(mulaiIndex, mulaiIndex + itemPerHalamanTransaksi);
-
-            dataPaginated.forEach(t => {
-                let warna = t.tipe === "MASUK" ? "text-blue-600" : "text-red-600";
-                let tanda = t.tipe === "MASUK" ? "+" : "-";
-                let nominalBersih = Number(t.nominal) || 0;
-                
-                let safeUrl = (t.bukti && t.bukti !== "-") ? t.bukti : "";
-                let buktiBtn = safeUrl ? `<button onclick="bukaLightbox('${safeUrl}')" class="bg-indigo-50 text-indigo-600 font-bold px-2 py-0.5 rounded shadow-sm hover:bg-indigo-100 transition">Lihat</button>` : `-`;
-
-                let checkboxTd = isAdminLoggedIn ? `<td class="py-2.5 px-3 text-center"><input type="checkbox" class="trx-checkbox w-4 h-4 accent-red-600 cursor-pointer" data-id="${t.id}" onchange="updateSelectedCount()"></td>` : '';
-                let actionTd = isAdminLoggedIn ? `<td class="py-2.5 px-3 text-center"><button onclick="hapusTransaksi('${t.id}')" class="text-red-500 font-bold bg-red-50 hover:bg-red-100 px-2 py-0.5 rounded transition">Hapus</button></td>` : '';
-                
-                tbody.innerHTML += `
-                    <tr class="hover:bg-slate-50 border-b border-slate-50">
-                        ${checkboxTd}
-                        <td class="py-2.5 px-3"><b>${t.keterangan || "-"}</b><br><span class="text-[10px] text-slate-400">${t.tanggal || "-"}</span></td>
-                        <td class="py-2.5 px-3">${t.jenisKas || "-"}</td>
-                        <td class="py-2.5 px-3">${t.kategori || "-"}</td>
-                        <td class="py-2.5 px-3">${buktiBtn}</td>
-                        <td class="py-2.5 px-3 text-right font-bold ${warna}">${tanda} Rp ${nominalBersih.toLocaleString('id-ID')}</td>
-                        ${actionTd}
-                    </tr>`;
-            });
-
-            document.getElementById('info-pagination-transaksi').innerText = `Menampilkan ${mulaiIndex + 1}-${Math.min(mulaiIndex + itemPerHalamanTransaksi, totalData)} dari ${totalData} data`;
-            document.getElementById('teks-halaman-aktif-transaksi').innerText = `Hal ${halamanAktifTransaksi}/${totalHalaman}`;
-            document.getElementById('btn-prev-transaksi').disabled = halamanAktifTransaksi === 1;
-            document.getElementById('btn-next-transaksi').disabled = halamanAktifTransaksi === totalHalaman;
-            updateSelectedCount();
-        }
-
-        function gantiPencarianTransaksi() { halamanAktifTransaksi = 1; renderRiwayatTransaksi(); }
-        function gantiHalamanTransaksi(arah) { halamanAktifTransaksi += arah; renderRiwayatTransaksi(); }
-
-        function toggleSelectAllTrx(masterCheckbox) {
-            const checkboxes = document.querySelectorAll('.trx-checkbox');
-            checkboxes.forEach(cb => { cb.checked = masterCheckbox.checked; });
-            updateSelectedCount();
-        }
-
-        function updateSelectedCount() {
-            const checkboxes = document.querySelectorAll('.trx-checkbox:checked');
-            const countEl = document.getElementById('count-selected');
-            if(countEl) countEl.innerText = checkboxes.length;
-        }
-
-        async function hapusTransaksiTerpilih() {
-            if(!isAdminLoggedIn) return;
-            const checkboxes = document.querySelectorAll('.trx-checkbox:checked');
-            if(checkboxes.length === 0) return alert("Pilih minimal satu transaksi yang ingin dihapus!");
-
-            if(confirm(`Yakin ingin menghapus ${checkboxes.length} transaksi yang dipilih?`)) {
-                let idsToDelete = Array.from(checkboxes).map(cb => String(cb.getAttribute('data-id')));
-                
-                checkboxes.forEach(cb => {
-                    let id = String(cb.getAttribute('data-id'));
-                    let tr = dataTransaksi.find(x => String(x.id) === id);
-                    if(tr && tr.tagihanId) {
-                        dataTagihan = dataTagihan.map(t => String(t.id) === String(tr.tagihanId) ? { ...t, status: 'BELUM' } : t);
-                    }
-                });
-
-                dataTransaksi = dataTransaksi.filter(t => !idsToDelete.includes(String(t.id)));
-                dataTagihan = bersihkanDataTagihan(dataTagihan);
-                dataTransaksi = bersihkanDataTransaksi(dataTransaksi);
-                
-                simpanLocalState();
-                renderTagihan(); 
-                renderRiwayatTransaksi(); 
-                updateDashboardView();
-                
-                const masterCb = document.getElementById('select-all-trx');
-                if(masterCb) masterCb.checked = false;
-
-                if(firebaseConnected){
-                    try{
-                        for(let tid of idsToDelete) await db.collection("transaksi").doc(String(tid)).delete();
-                        // update tagihan status
-                        for(let t of dataTagihan) await db.collection("tagihan").doc(String(t.id)).set(t, {merge:true});
-                    }catch(e){ console.log(e); }
-                }
-                syncTransaksiKeCloudClean();
-
-                alert("Transaksi terpilih berhasil dihapus permanen!");
-            }
-        }
-
-        async function hapusTransaksi(id) {
-            if(!isAdminLoggedIn) return;
-            if(confirm("Hapus transaksi ini?")) {
-                let tr = dataTransaksi.find(x => String(x.id) === String(id));
-                if(tr) {
-                    if(tr.tagihanId) {
-                        dataTagihan = dataTagihan.map(t => String(t.id) === String(tr.tagihanId) ? { ...t, status: 'BELUM' } : t);
-                    }
-                    dataTransaksi = dataTransaksi.filter(t => String(t.id) !== String(id));
-                    dataTagihan = bersihkanDataTagihan(dataTagihan);
-                    dataTransaksi = bersihkanDataTransaksi(dataTransaksi);
-                    simpanLocalState();
-                }
-                renderTagihan(); renderRiwayatTransaksi(); updateDashboardView();
-                
-                if(firebaseConnected){
-                    try{
-                        await db.collection("transaksi").doc(String(id)).delete();
-                        if(tr && tr.tagihanId) await db.collection("tagihan").doc(String(tr.tagihanId)).set({status:'BELUM'}, {merge:true});
-                    }catch(e){ console.log(e); }
-                }
-
-                alert("Transaksi berhasil dihapus permanen!");
-            }
-        }
-
-        function updateDashboardView() {
-            let totalMasuk = 0, totalKeluar = 0;
-            dataTransaksi.forEach(t => {
-                if(!t) return;
-                let matchKas = (kasAktifFilter === "SEMUA" || (t.jenisKas && String(t.jenisKas).trim().toLowerCase() === String(kasAktifFilter).trim().toLowerCase()));
-                if (matchKas) {
-                    let nominalAman = Number(t.nominal) || 0;
-                    if(t.tipe === "MASUK") totalMasuk += nominalAman;
-                    if(t.tipe === "KELUAR") totalKeluar += nominalAman;
-                }
-            });
-            const cSaldo = document.getElementById('card-saldo');
-            const cMasuk = document.getElementById('card-masuk');
-            const cKeluar = document.getElementById('card-keluar');
-
-            if(cSaldo) cSaldo.innerText = `Rp ${(totalMasuk - totalKeluar).toLocaleString('id-ID')}`;
-            if(cMasuk) cMasuk.innerText = `Rp ${totalMasuk.toLocaleString('id-ID')}`;
-            if(cKeluar) cKeluar.innerText = `Rp ${totalKeluar.toLocaleString('id-ID')}`;
-        }
-
-        function eksekusiDownloadPdf() {
-            const jenisLaporan = document.getElementById('pdf-jenis-laporan').value;
-            const pilihanJenisKas = document.getElementById('pdf-jeniskas').value;
-
-            if (jenisLaporan === 'TRANSAKSI') {
-                const tglMulai = document.getElementById('pdf-tgl-mulai').value;
-                const tglSelesai = document.getElementById('pdf-tgl-selesai').value;
-                if (!tglMulai || !tglSelesai) return alert("Mohon tentukan rentang tanggal laporan!");
-                downloadPdfTransaksi(tglMulai, tglSelesai, pilihanJenisKas);
-            } else if (jenisLaporan === 'LUNAS' || jenisLaporan === 'BELUM') {
-                const periodeBulan = document.getElementById('pdf-periode-bulan').value;
-                downloadPdfStatusWarga(jenisLaporan, periodeBulan, pilihanJenisKas);
-            }
-        }
-
-        function downloadPdfTransaksi(tglMulai, tglSelesai, pilihanJenisKas) {
-            const filteredData = dataTransaksi.filter(t => {
-                const matchTanggal = t.tanggal >= tglMulai && t.tanggal <= tglSelesai;
-                const matchKas = (pilihanJenisKas === "SEMUA" || (t.jenisKas && String(t.jenisKas).trim().toLowerCase() === String(pilihanJenisKas).trim().toLowerCase()));
-                return matchTanggal && matchKas;
-            });
-
-            let totalMasuk = 0; let totalKeluar = 0;
-            filteredData.forEach(t => {
-                let n = Number(t.nominal) || 0;
-                if (t.tipe === "MASUK") totalMasuk += n;
-                if (t.tipe === "KELUAR") totalKeluar += n;
-            });
-            const saldoAkhir = totalMasuk - totalKeluar;
-
-            const { jsPDF } = window.jspdf;
-            const doc = new jsPDF();
-            doc.setFont("helvetica", "bold"); doc.setFontSize(14); doc.text("LAPORAN KAS TKR RT.02", 14, 15);
-            doc.setFont("helvetica", "normal"); doc.setFontSize(10);
-            doc.text(`Jenis Kas: ${pilihanJenisKas}`, 14, 22); doc.text(`Periode Transaksi: ${tglMulai} s/d ${tglSelesai}`, 14, 28);
-            doc.setLineWidth(0.5); doc.line(14, 33, 196, 33);
-            doc.setFont("helvetica", "bold"); doc.text("Ringkasan Keuangan:", 14, 40);
-            doc.setFont("helvetica", "normal");
-            doc.text(`- Total Pemasukan : Rp ${totalMasuk.toLocaleString('id-ID')}`, 14, 46);
-            doc.text(`- Total Pengeluaran: Rp ${totalKeluar.toLocaleString('id-ID')}`, 14, 52);
-            doc.text(`- Saldo Akhir      : Rp ${saldoAkhir.toLocaleString('id-ID')}`, 14, 58);
-            doc.line(14, 63, 196, 63);
-
-            let startY = 76;
-            doc.setFont("helvetica", "bold"); doc.text("Rincian Transaksi:", 14, 70);
-            doc.setFillColor(240, 240, 240); doc.rect(14, startY - 5, 182, 8, "F");
-            doc.text("Tanggal", 16, startY); doc.text("Keterangan", 44, startY); doc.text("Nominal", 165, startY, { align: "right" });
-            startY += 8; 
-            
-            doc.setFont("helvetica", "normal"); 
-            doc.setFontSize(8);
-
-            if (filteredData.length === 0) {
-                doc.text("Tidak ada data transaksi.", 14, startY);
-            } else {
-                filteredData.forEach((t) => {
-                    if (startY > 275) { doc.addPage(); startY = 20; }
-                    let tanda = t.tipe === "MASUK" ? "+" : "-";
-                    let tanggalBersih = t.tanggal ? String(t.tanggal).substring(0, 10) : "-";
-                    doc.text(tanggalBersih, 16, startY);
-                    doc.text((t.keterangan || "-").substring(0, 75), 44, startY);
-                    doc.text(`${tanda} Rp ${(Number(t.nominal)||0).toLocaleString('id-ID')}`, 194, startY, { align: "right" });
-                    startY += 6;
-                });
-            }
-            doc.save(`Laporan_Transaksi_${tglMulai}.pdf`); tutupModalPdf();
-        }
-
-        function exportExcelBackup(){
-            try{
-                const wb = XLSX.utils.book_new();
-                // Sheet Warga
-                const wsWarga = XLSX.utils.json_to_sheet(dataWarga.map(w=>({ID:w.id, Nama:w.nama, Blok:w.blok, HP:w.hp, Status:w.status, Nominal:w.nominal, JenisKas:w.jenisKas})));
-                XLSX.utils.book_append_sheet(wb, wsWarga, "Warga");
-                // Sheet Tagihan
-                const wsTag = XLSX.utils.json_to_sheet(dataTagihan.map(t=>({ID:t.id, WargaID:t.wargaId, Nama:t.nama, Blok:t.blok, Periode:t.periode, JenisKas:t.jenisKas, Nominal:t.nominal, Status:t.status})));
-                XLSX.utils.book_append_sheet(wb, wsTag, "Tagihan");
-                // Sheet Transaksi
-                const wsTrx = XLSX.utils.json_to_sheet(dataTransaksi.map(tr=>({ID:tr.id, TagihanID:tr.tagihanId, Tipe:tr.tipe, Kategori:tr.kategori, JenisKas:tr.jenisKas, Nominal:tr.nominal, Keterangan:tr.keterangan, Tanggal:tr.tanggal})));
-                XLSX.utils.book_append_sheet(wb, wsTrx, "Transaksi");
-                // Sheet Rekap per Jenis Kas
-                const rekap = {};
-                dataTransaksi.forEach(tr=>{
-                    const k = tr.jenisKas || "Lainnya";
-                    if(!rekap[k]) rekap[k]={Masuk:0, Keluar:0};
-                    if(tr.tipe==="MASUK") rekap[k].Masuk += Number(tr.nominal)||0;
-                    if(tr.tipe==="KELUAR") rekap[k].Keluar += Number(tr.nominal)||0;
-                });
-                const rekapArr = Object.keys(rekap).map(k=>({JenisKas:k, Masuk:rekap[k].Masuk, Keluar:rekap[k].Keluar, Saldo:rekap[k].Masuk-rekap[k].Keluar}));
-                const wsRekap = XLSX.utils.json_to_sheet(rekapArr);
-                XLSX.utils.book_append_sheet(wb, wsRekap, "Rekap");
-                const tgl = new Date().toISOString().slice(0,10);
-                XLSX.writeFile(wb, `Backup-Kas-RT02-${tgl}.xlsx`);
-                tulisLog("EXPORT_EXCEL", `Backup ${dataWarga.length} warga, ${dataTagihan.length} tagihan, ${dataTransaksi.length} transaksi`);
-            }catch(e){ alert("Gagal export: "+e.message); }
-        }
-        function downloadPdfStatusWarga(statusCari, periodeBulan, pilihanJenisKas) {
-            const filteredTagihan = dataTagihan.filter(t => {
-                if(!t) return false;
-                t.periode = bersihkanFormatPeriode(t.periode);
-                let wargaM = dataWarga.find(w => String(w.id) === String(t.wargaId) || (w.nama === t.nama && w.blok === t.blok));
-                if (wargaM && (wargaM.status === "Pengurus (Gratis)" || wargaM.status === "Rumah Kosong" || wargaM.status === "Pindah")) return false;
-
-                const matchPeriode = t.periode && (String(t.periode).trim().toLowerCase() === String(periodeBulan).trim().toLowerCase());
-                const matchStatus = t.status && (String(t.status).trim().toUpperCase() === statusCari);
-                const matchKas = (pilihanJenisKas === "SEMUA" || (t.jenisKas && String(t.jenisKas).trim().toLowerCase() === String(pilihanJenisKas).trim().toLowerCase()));
-                return matchPeriode && matchStatus && matchKas;
-            });
-
-            filteredTagihan.sort((a, b) => {
-                const numA = extractBlockNumber(a.blok);
-                const numB = extractBlockNumber(b.blok);
-                if (numA !== numB) return numA - numB;
-                return String(a.blok || '').localeCompare(String(b.blok || ''));
-            });
-
-            let totalNominal = 0;
-            filteredTagihan.forEach(t => { totalNominal += Number(t.nominal) || 0; });
-
-            const { jsPDF } = window.jspdf;
-            const doc = new jsPDF();
-            let judulLaporan = statusCari === 'LUNAS' ? "REKAP WARGA SUDAH LUNAS" : "REKAP WARGA BELUM BAYAR (TUNGGAKAN)";
-            let warnaJudul = statusCari === 'LUNAS' ? [16, 150, 80] : [200, 40, 40];
-
-            doc.setFont("helvetica", "bold"); doc.setFontSize(14); 
-            doc.setTextColor(warnaJudul[0], warnaJudul[1], warnaJudul[2]);
-            doc.text(`LAPORAN KAS TKR RT.02 - ${judulLaporan}`, 14, 15);
-            
-            doc.setTextColor(0, 0, 0);
-            doc.setFont("helvetica", "normal"); doc.setFontSize(10);
-            doc.text(`Jenis Kas: ${pilihanJenisKas}`, 14, 22); 
-            doc.text(`Periode Bulan: ${periodeBulan}`, 14, 28);
-            doc.text(`Total Warga: ${filteredTagihan.length} Rumah`, 14, 34);
-            doc.setLineWidth(0.5); doc.line(14, 39, 196, 39);
-
-            let startY = 48;
-            doc.setFillColor(240, 240, 240); doc.rect(14, startY - 5, 182, 8, "F");
-            doc.setFont("helvetica", "bold");
-            doc.text("No", 16, startY); doc.text("Nama Kepala Keluarga", 28, startY); doc.text("Blok / Unit", 120, startY); doc.text("Nominal", 165, startY, { align: "right" });
-            startY += 8; 
-            
-            doc.setFont("helvetica", "normal"); doc.setFontSize(9);
-
-            if (filteredTagihan.length === 0) {
-                doc.text(`Tidak ada data untuk kategori ini.`, 14, startY);
-            } else {
-                filteredTagihan.forEach((t, index) => {
-                    if (startY > 275) { doc.addPage(); startY = 20; }
-                    doc.text(`${index + 1}`, 16, startY);
-                    doc.text((t.nama || "-").substring(0, 45), 28, startY);
-                    doc.text(`Blok ${t.blok || "-"}`, 120, startY);
-                    doc.text(`Rp ${(Number(t.nominal)||0).toLocaleString('id-ID')}`, 194, startY, { align: "right" });
-                    startY += 7;
-                });
-            }
-
-            startY += 4;
-            doc.setLineWidth(0.3); doc.line(14, startY, 196, startY);
-            startY += 7;
-            doc.setFont("helvetica", "bold");
-            doc.text(`Total Nominal: Rp ${totalNominal.toLocaleString('id-ID')}`, 14, startY);
-
-            let namaFile = statusCari === 'LUNAS' ? `Laporan_Sudah_Lunas_${periodeBulan.replace(/\s+/g, '_')}.pdf` : `Laporan_Belum_Bayar_${periodeBulan.replace(/\s+/g, '_')}.pdf`;
-            doc.save(namaFile); tutupModalPdf();
-        }
-    </script>
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a27b94006f0b938e',t:'MTc4NjE2MTI0OQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+      </div>
+      <div class="bg-white border rounded-2xl p-5 space-y-4">
+        <div class="flex items-center gap-2 font-bold"><span class="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">👤</span> Pengurus</div>
+        <div class="grid md:grid-cols-2 gap-3">
+          <div><label class="text-xs font-semibold">Ketua RT</label><input id="pKetua" class="w-full border p-2.5 rounded-xl mt-1 bg-white"></div>
+          <div><label class="text-xs font-semibold">Bendahara</label><input id="pBendahara" class="w-full border p-2.5 rounded-xl mt-1 bg-white"></div>
+        </div>
+      </div>
+      <div class="bg-white border rounded-2xl p-5 space-y-3">
+        <div class="flex items-center gap-2 font-bold"><span class="w-7 h-7 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">💳</span> Iuran</div>
+        <div class="max-w-xs"><label class="text-xs font-semibold">Nominal iuran bulanan (Rp)</label><input id="pNominal" type="number" class="w-full border p-2.5 rounded-xl mt-1 bg-white"><p class="text-[11px] text-slate-400 mt-1">Digunakan sebagai default saat mencatat pembayaran iuran warga.</p></div>
+      </div>
+      <button onclick="simpanPengaturan()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-6 py-2.5 rounded-full">💾 Simpan Pengaturan</button>
+      <div class="bg-white border rounded-2xl p-5 space-y-2">
+        <h3 class="font-bold text-sm">Jenis Kas</h3>
+        <div class="flex gap-2"><input id="inputKas2" placeholder="Nama Kas" class="flex-1 border p-2 rounded-xl"><button onclick="simpanKas2()" class="bg-slate-900 text-white px-4 rounded-xl font-bold">+</button></div>
+        <div id="listKas2" class="divide-y text-sm"></div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<!-- MODALS -->
+<div id="modalLogin" class="fixed inset-0 hidden bg-black/50 z-50 items-center justify-center p-4"><div class="bg-white rounded-2xl p-6 w-full max-w-sm space-y-3"><h3 class="font-bold">Login Admin</h3><input id="loginUser" placeholder="Username" class="w-full border p-2.5 rounded-xl"><input id="loginPass" type="password" placeholder="Password" class="w-full border p-2.5 rounded-xl"><button onclick="prosesLogin()" class="w-full bg-slate-900 text-white py-2 rounded-xl font-bold">Masuk</button><button onclick="tutup('modalLogin')" class="w-full text-sm">Batal</button></div></div>
+<div id="modalWarga" class="fixed inset-0 hidden bg-black/50 z-50 items-center justify-center p-4"><div class="bg-white rounded-2xl p-5 w-full max-w-lg space-y-3 overflow-auto max-h-[90vh]"><h3 class="font-bold">Tambah Warga</h3><input id="wNama" placeholder="Nama" class="w-full border p-2 rounded-xl"><input id="wBlok" placeholder="Blok" class="w-full border p-2 rounded-xl"><input id="wHp" placeholder="HP" class="w-full border p-2 rounded-xl"><select id="wStatus" class="w-full border p-2 rounded-xl"><option>Tetap</option><option>Kontrak</option><option>Pengurus (Gratis)</option><option>Rumah Kosong</option><option>Pindah</option></select><input id="wNominal" type="number" value="55000" class="w-full border p-2 rounded-xl"><select id="wJenisKas" class="w-full border p-2 rounded-xl"></select><input type="hidden" id="wId"><button onclick="simpanWarga()" class="w-full bg-indigo-600 text-white py-2 rounded-xl font-bold">Simpan</button><button onclick="tutup('modalWarga')" class="w-full text-sm">Batal</button></div></div>
+<div id="modalMasuk" class="fixed inset-0 hidden bg-black/50 z-50 items-center justify-center p-4"><div class="bg-white rounded-2xl p-5 w-full max-w-sm space-y-3"><h3 class="font-bold">Transaksi</h3><select id="trxTipe" class="w-full border p-2 rounded-xl"><option value="MASUK">MASUK</option><option value="KELUAR">KELUAR</option></select><select id="trxKas" class="w-full border p-2 rounded-xl"></select><input id="trxNominal" type="number" placeholder="Nominal" class="w-full border p-2 rounded-xl"><input id="trxKet" placeholder="Keterangan" class="w-full border p-2 rounded-xl"><input id="trxTgl" type="date" class="w-full border p-2 rounded-xl"><input id="trxBukti" type="file" accept="image/*" class="w-full border p-2 rounded-xl text-xs"><button onclick="simpanTrx()" class="w-full bg-emerald-600 text-white py-2 rounded-xl font-bold">Simpan</button><button onclick="tutup('modalMasuk')" class="w-full text-sm">Batal</button></div></div>
+<div id="modalGenerate" class="fixed inset-0 hidden bg-black/50 z-50 items-center justify-center p-4"><div class="bg-white rounded-2xl p-5 w-full max-w-sm space-y-3"><h3 class="font-bold">Generate Tagihan</h3><select id="genKas" class="w-full border p-2 rounded-xl"></select><select id="genPeriode" class="w-full border p-2 rounded-xl"><option>Agustus 2026</option><option>September 2026</option><option>Juli 2026</option></select><input id="genNominal" type="number" value="55000" class="w-full border p-2 rounded-xl"><button onclick="doGenerate()" class="w-full bg-slate-900 text-white py-2 rounded-xl font-bold">Generate</button><button onclick="tutup('modalGenerate')" class="w-full text-sm">Batal</button></div></div>
+
+<script>
+const firebaseConfig = { apiKey:"AIzaSyBbby_z2WVw02-1I9R-CPsQBCKzunLdROc", authDomain:"kas-rt02-tkr.firebaseapp.com", projectId:"kas-rt02-tkr", storageBucket:"kas-rt02-tkr.firebasestorage.app", messagingSenderId:"425411747451", appId:"1:425411747451:web:e5e7a8dcfd7256af28ccde" };
+if(!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const ADMIN_PASS = localStorage.getItem('rt_admin_pass')||'rt02admin';
+let isAdmin = sessionStorage.getItem('rt_is_admin')==='true';
+let jenisKasList = JSON.parse(localStorage.getItem('rt_jenis_kas')||'["Kas Bulanan","Kas Keamanan","Kas Sosial / Kematian","KAS HUT RI"]');
+let warga=[], tagihan=[], transaksi=[], pengaturan={};
+let page=1;
+function nav(id){
+  document.querySelectorAll('section').forEach(s=>s.classList.add('hidden'));
+  document.getElementById('sec-'+id).classList.remove('hidden');
+  document.querySelectorAll('[id^="nav-"]').forEach(b=>{ b.classList.remove('nav-active'); b.classList.add('text-slate-600'); });
+  document.getElementById('nav-'+id).classList.add('nav-active'); document.getElementById('nav-'+id).classList.remove('text-slate-600');
+  if(window.innerWidth<768) document.getElementById('sidebar').classList.add('hidden');
+}
+function buka(id){ document.getElementById(id).classList.remove('hidden'); document.getElementById(id).classList.add('flex'); }
+function tutup(id){ document.getElementById(id).classList.add('hidden'); }
+function handleLogin(){ if(isAdmin){ if(confirm('Logout?')){ sessionStorage.removeItem('rt_is_admin'); location.reload(); }} else buka('modalLogin'); }
+function prosesLogin(){ const u=document.getElementById('loginUser').value.trim(), p=document.getElementById('loginPass').value.trim(); if(u==='admin'&&p===ADMIN_PASS){ sessionStorage.setItem('rt_is_admin','true'); location.reload(); } else alert('Salah'); }
+function refreshKas(){ const els=[document.getElementById('wJenisKas'),document.getElementById('trxKas'),document.getElementById('genKas'),document.getElementById('filterKas'),document.getElementById('dashJenisKas')]; els.forEach(el=>{ if(!el) return; el.innerHTML=''; jenisKasList.forEach(k=> el.innerHTML+=`<option>${k}</option>`); }); // filterKas add SEMUA
+  const f=document.getElementById('filterKas'); if(f && !f.innerHTML.includes('SEMUA')) f.innerHTML = '<option value="SEMUA">SEMUA</option>' + f.innerHTML;
+  const df=document.getElementById('dashJenisKas'); if(df && df.options.length===0){ df.innerHTML='<option value="SEMUA">SEMUA Jenis Kas</option>'; jenisKasList.forEach(k=> df.innerHTML+=`<option>${k}</option>`); } else if(df && !df.innerHTML.includes('SEMUA')) df.innerHTML='<option value="SEMUA">SEMUA Jenis Kas</option>'+df.innerHTML;
+}
+async function load(){
+  const dKas = await db.collection("config").doc("jenisKas").get(); if(dKas.exists) jenisKasList=dKas.data().list;
+  const dPeng = await db.collection("config").doc("pengaturan").get(); if(dPeng.exists) pengaturan=dPeng.data(); else pengaturan={namaRT:"TKR RT.02", namaRW:"RW 07", kelurahan:"Mekarjaya", kecamatan:"Sukmajaya", kota:"Depok", tahun:"2026", ketua:"Bapak Sutrisno", bendahara:"Ibu Sari Wulandari", nominal:50000};
+  // fill pengaturan form
+  document.getElementById('pNamaRT').value=pengaturan.namaRT||''; document.getElementById('pNamaRW').value=pengaturan.namaRW||''; document.getElementById('pKelurahan').value=pengaturan.kelurahan||''; document.getElementById('pKecamatan').value=pengaturan.kecamatan||''; document.getElementById('pKota').value=pengaturan.kota||''; document.getElementById('pTahun').value=pengaturan.tahun||''; document.getElementById('pKetua').value=pengaturan.ketua||''; document.getElementById('pBendahara').value=pengaturan.bendahara||''; document.getElementById('pNominal').value=pengaturan.nominal||50000;
+  document.getElementById('sbNamaRT').innerText = pengaturan.namaRT + " / " + pengaturan.namaRW;
+  document.getElementById('sbAlamatRT').innerText = pengaturan.kelurahan + " - " + pengaturan.kota;
+  const snapW=await db.collection("warga").get(); warga=[]; snapW.forEach(d=> warga.push(d.data()));
+  const snapT=await db.collection("tagihan").get(); tagihan=[]; snapT.forEach(d=> tagihan.push(d.data()));
+  const snapTr=await db.collection("transaksi").get(); transaksi=[]; snapTr.forEach(d=> transaksi.push(d.data()));
+  refreshKas(); render();
+  document.getElementById('btnLoginSb').innerText = isAdmin? 'Logout Admin':'🔐 Login Admin';
+  document.querySelectorAll('.adminOnly').forEach(e=> e.classList.toggle('hidden', !isAdmin));
+}
+function render(){
+  // sync dashJenisKas value
+  const dashKasEl=document.getElementById('dashJenisKas');
+  let dashKas = dashKasEl ? dashKasEl.value : 'SEMUA';
+  if(!dashKas) dashKas='SEMUA';
+  // dashboard stats filtered by dashKas
+  const bulan="2026-08";
+  let masukB=0, keluarB=0, totM=0, totK=0;
+  const isDashAll = dashKas==="SEMUA";
+  transaksi.forEach(t=>{ if(!isDashAll && t.jenisKas!==dashKas) return; const n=Number(t.nominal)||0; if(t.tipe==="MASUK") totM+=n; else totK+=n; if(t.tanggal && t.tanggal.startsWith(bulan)){ if(t.tipe==="MASUK") masukB+=n; else keluarB+=n; } });
+  document.getElementById('dSaldo').innerText="Rp "+(totM-totK).toLocaleString('id-ID');
+  document.getElementById('dMasuk').innerText="Rp "+masukB.toLocaleString('id-ID');
+  document.getElementById('dKeluar').innerText="Rp "+keluarB.toLocaleString('id-ID');
+  document.getElementById('lMasuk').innerText="Rp "+totM.toLocaleString('id-ID');
+  document.getElementById('lKeluar').innerText="Rp "+totK.toLocaleString('id-ID');
+  document.getElementById('lSaldo').innerText="Rp "+(totM-totK).toLocaleString('id-ID');
+  const aktif=warga.filter(w=>w.status==="Tetap"||w.status==="Kontrak").length;
+  document.getElementById('dWarga').innerText=aktif;
+  const agustus = tagihan.filter(t=>t.periode==="Agustus 2026" && (isDashAll || t.jenisKas===dashKas));
+  const lunas = agustus.filter(t=>t.status==="LUNAS").length;
+  const total=agustus.length;
+  const persen= total? Math.round(lunas/total*100):0;
+  document.getElementById('dPersen')? document.getElementById('dPersen').innerText=persen+"%":null;
+  const bar=document.getElementById('dBar'); if(bar) bar.style.width=persen+"%";
+  const info=document.getElementById('dInfoLunas'); if(info) info.innerText=`${lunas}/${total} warga`;
+  document.getElementById('dBelumInfo').innerText=(total-lunas)+" belum bayar";
+  document.getElementById('dCountBelum').innerText= total-lunas;
+  document.getElementById('dNeto').innerText="Rp "+(masukB-keluarB).toLocaleString('id-ID');
+  document.getElementById('dNetoDetail').innerText=`Pemasukan Rp ${masukB.toLocaleString('id-ID')} - Pengeluaran Rp ${keluarB.toLocaleString('id-ID')}`;
+  const belum = agustus.filter(t=>t.status==="BELUM").slice(0,100);
+  document.getElementById('dListBelum').innerHTML = belum.map(t=>`<div class="flex justify-between py-2 border-b last:border-0"><div><p class="font-semibold text-sm">${t.nama}</p><p class="text-xs text-slate-400">Blok ${t.blok}</p></div><span class="text-xs bg-amber-50 text-amber-700 border border-amber-200 px-2 py-1 rounded-full h-fit">Belum</span></div>`).join('') || '<p class="text-xs text-slate-400">Semua lunas 🎉</p>';
+  let filteredTrx = isDashAll ? [...transaksi] : transaksi.filter(x=>x.jenisKas===dashKas);
+  const sorted=[...filteredTrx].sort((a,b)=>(b.tanggal||"").localeCompare(a.tanggal||"")).slice(0,50);
+  document.getElementById('dTransaksi').innerHTML = sorted.map(t=>`<div class="flex justify-between py-3 border-b last:border-0"><div><p class="text-sm font-medium">${t.keterangan}</p><p class="text-xs text-slate-400">${t.tanggal} · ${t.kategori}</p></div><span class="text-sm font-bold ${t.tipe==="MASUK"?'text-emerald-600':'text-rose-600'}">${t.tipe==="MASUK"?'+':'-'}Rp ${Number(t.nominal).toLocaleString('id-ID')}</span></div>`).join('') || '<p class="text-xs text-slate-400">Belum ada</p>';
+  renderTransaksi(); renderIuran(); renderWarga(); renderKas2();
+}
+function renderTransaksi(){
+  const q=document.getElementById('cariTrx').value.toLowerCase();
+  const kat=document.getElementById('filterKategoriTrx').value;
+  let filtered=transaksi.filter(t=> (!q || t.keterangan.toLowerCase().includes(q) || t.kategori.toLowerCase().includes(q)) && (kat==="SEMUA" || t.kategori===kat || (kat==="Pemasukan"&&t.tipe==="MASUK") || (kat==="Pengeluaran"&&t.tipe==="KELUAR")));
+  filtered.sort((a,b)=>(b.tanggal||"").localeCompare(a.tanggal||""));
+  const el=document.getElementById('listTrx');
+  if(!filtered.length){ el.innerHTML='<p class="text-center text-sm text-slate-400 py-8">Tidak ada transaksi</p>'; return; }
+  el.innerHTML = filtered.map(t=>`
+    <div class="flex items-center gap-3 bg-slate-50 hover:bg-white border border-transparent hover:border-slate-200 rounded-2xl p-3 transition">
+      <div class="w-12 h-12 rounded-xl ${t.tipe==="MASUK"?'bg-emerald-50 text-emerald-600':'bg-rose-50 text-rose-600'} flex flex-col items-center justify-center leading-none">
+        <span class="text-[10px] font-bold">${(t.tanggal||'').slice(5,7)}/${(t.tanggal||'').slice(0,4)}</span>
+        <span class="text-sm font-bold">${(t.tanggal||'').slice(8,10)}</span>
+      </div>
+      <div class="flex-1 min-w-0">
+        <p class="text-sm font-semibold truncate">${t.keterangan}</p>
+        <p class="text-xs text-slate-500">${t.tanggal} · <span class="bg-white border px-2 py-0.5 rounded-full text-[11px]">${t.kategori}</span> · <span class="text-[11px] ${t.jenisKas==="Kas Bulanan"?'text-emerald-700':'text-slate-500'}">${t.jenisKas}</span></p>
+      </div>
+      <div class="text-right">
+        <p class="text-sm font-bold ${t.tipe==="MASUK"?'text-emerald-600':'text-rose-600'}">${t.tipe==="MASUK"?'+':'-'}Rp ${Number(t.nominal).toLocaleString('id-ID')}</p>
+        <button onclick="hapusTrx('${t.id}')" class="adminOnly text-[11px] text-rose-500 hover:text-rose-700 font-bold">Hapus</button>
+      </div>
+    </div>`).join('');
+}
+function renderIuran(){
+  const bulan=document.getElementById('filterBulan').value;
+  const kas=document.getElementById('filterKas').value;
+  const q=document.getElementById('cariIuran').value.toLowerCase();
+  let filtered=tagihan.filter(t=> t.periode===bulan && (kas==="SEMUA"||t.jenisKas===kas));
+  if(q) filtered=filtered.filter(t=> t.nama.toLowerCase().includes(q) || t.blok.toLowerCase().includes(q));
+  const start=(page-1)*10;
+  const pageData=filtered.slice(start,start+10);
+  document.getElementById('tblIuran').innerHTML = pageData.map(t=>`<tr class="border-b"><td class="py-2"><b>${t.nama}</b><br><span class="text-xs text-slate-400">Blok ${t.blok}</span></td><td>${t.jenisKas}</td><td class="text-right font-bold">Rp ${Number(t.nominal).toLocaleString('id-ID')}</td><td class="text-center"><span class="text-xs px-2 py-1 rounded-full ${t.status==="LUNAS"?'bg-emerald-50 text-emerald-700':'bg-rose-50 text-rose-700'}">${t.status}</span></td><td class="text-center"><button onclick="bayar('${t.id}')" class="text-xs bg-emerald-600 text-white px-2 py-1 rounded-full">${t.status==="LUNAS"?'Batal':'Bayar'}</button></td></tr>`).join('') || '<tr><td colspan=5 class="text-center py-4 text-slate-400">Tidak ada data</td></tr>';
+  document.getElementById('infoIuran').innerText=`${start+1}-${Math.min(start+10,filtered.length)} dari ${filtered.length}`;
+}
+function pageIuran(d){ page+=d; if(page<1) page=1; renderIuran(); }
+function renderWarga(){
+  const q=document.getElementById('cariWarga').value.toLowerCase();
+  const f=document.getElementById('filterStatusWarga').value;
+  let filtered=warga;
+  if(q) filtered=filtered.filter(w=> w.nama.toLowerCase().includes(q) || w.blok.toLowerCase().includes(q) || w.hp.toLowerCase().includes(q));
+  if(f==='aktif') filtered=filtered.filter(w=> w.status==='Tetap'||w.status==='Kontrak');
+  if(f==='nonaktif') filtered=filtered.filter(w=> !(w.status==='Tetap'||w.status==='Kontrak'));
+  const aktif = warga.filter(w=>w.status==='Tetap'||w.status==='Kontrak').length;
+  document.getElementById('wargaSub').innerText = `Kelola daftar warga anggota RT - ${aktif} aktif / ${warga.length} total`;
+  document.getElementById('gridWarga').innerHTML = filtered.map((w,i)=>{
+    const isAktif = w.status==='Tetap'||w.status==='Kontrak';
+    const num = String(i+1).padStart(2,'0');
+    // bergabung date from id timestamp if possible
+    let tgl=`Blok ${w.blok} · ${w.jenisKas||'Kas Bulanan'}`;
+    if(!tgl) tgl=`Blok ${w.blok} · ${w.jenisKas||''}`;
+    return `<div class="bg-white border rounded-2xl p-4 flex flex-col">
+      <div class="flex gap-3">
+        <div class="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold text-xs">${num}</div>
+        <div class="flex-1">
+          <p class="font-bold text-sm">${w.nama}</p>
+          <p class="text-xs text-slate-500">${tgl}</p>
+        </div>
+        <span class="text-[11px] font-bold px-2 py-1 rounded-full h-fit ${isAktif?'bg-emerald-50 text-emerald-700':'bg-slate-100 text-slate-500'}">${isAktif?'aktif':'nonaktif'}</span>
+      </div>
+      <p class="text-xs text-slate-500 mt-3 flex items-center gap-1">📞 ${w.hp}</p>
+      <div class="flex gap-2 mt-3">
+        <button onclick="editWarga('${w.id}')" class="flex-1 border border-slate-200 py-2 rounded-xl text-xs font-bold bg-white">✎ Edit</button>
+        <button onclick="hapusWarga('${w.id}')" class="flex-1 border border-rose-100 bg-rose-50 text-rose-600 py-2 rounded-xl text-xs font-bold">🗑 Hapus</button>
+      </div>
+    </div>`;
+  }).join('') || '<p class="col-span-3 text-center text-slate-400 py-8">Tidak ada warga</p>';
+}
+function renderKas2(){ document.getElementById('listKas2').innerHTML = jenisKasList.map((k,i)=>`<div class="flex justify-between py-2"><span>${k}</span><button onclick="hapusKas2(${i})" class="text-rose-600 text-xs">Hapus</button></div>`).join(''); }
+function bukaWarga(){ if(!isAdmin) return alert('Admin only'); buka('modalWarga'); }
+function bukaGenerate(){ if(!isAdmin) return; buka('modalGenerate'); }
+function bukaMasuk(){ if(!isAdmin) return alert('Login admin'); buka('modalMasuk'); document.getElementById('trxTgl').value=new Date().toISOString().slice(0,10); }
+async function simpanKas2(){ const v=document.getElementById('inputKas2').value.trim(); if(!v) return; jenisKasList.push(v); await db.collection("config").doc("jenisKas").set({list:jenisKasList}); renderKas2(); refreshKas(); }
+async function hapusKas2(i){ jenisKasList.splice(i,1); await db.collection("config").doc("jenisKas").set({list:jenisKasList}); renderKas2(); refreshKas(); }
+async function simpanPengaturan(){ const data={namaRT:document.getElementById('pNamaRT').value, namaRW:document.getElementById('pNamaRW').value, kelurahan:document.getElementById('pKelurahan').value, kecamatan:document.getElementById('pKecamatan').value, kota:document.getElementById('pKota').value, tahun:document.getElementById('pTahun').value, ketua:document.getElementById('pKetua').value, bendahara:document.getElementById('pBendahara').value, nominal:Number(document.getElementById('pNominal').value)}; await db.collection("config").doc("pengaturan").set(data); alert('Pengaturan disimpan!'); pengaturan=data; }
+async function simpanWarga(){ const id=document.getElementById('wId').value||String(Date.now()); const obj={id, nama:document.getElementById('wNama').value.trim().toUpperCase(), blok:document.getElementById('wBlok').value.trim(), hp:document.getElementById('wHp').value.trim()||'-', status:document.getElementById('wStatus').value, nominal:Number(document.getElementById('wNominal').value)||0, jenisKas:document.getElementById('wJenisKas').value}; if(!obj.nama||!obj.blok) return alert('Isi nama blok'); await db.collection("warga").doc(obj.id).set(obj); load(); tutup('modalWarga'); }
+async function hapusWarga(id){ if(!confirm('Hapus?')) return; await db.collection("warga").doc(id).delete(); load(); }
+function editWarga(id){ const w=warga.find(x=>x.id===id); if(!w) return; document.getElementById('wId').value=w.id; document.getElementById('wNama').value=w.nama; document.getElementById('wBlok').value=w.blok; document.getElementById('wHp').value=w.hp; document.getElementById('wStatus').value=w.status; document.getElementById('wNominal').value=w.nominal; buka('modalWarga'); }
+async function doGenerate(){ const kas=document.getElementById('genKas').value; const periode=document.getElementById('genPeriode').value; const nominal=Number(document.getElementById('genNominal').value)||0; const valid=warga.filter(w=>w.status==='Tetap'||w.status==='Kontrak'); for(const w of valid){ const id=`T_${w.id}_${periode.replace(/\s+/g,'')}_${kas.replace(/\s+/g,'')}`; await db.collection("tagihan").doc(id).set({id,wargaId:String(w.id),nama:w.nama,blok:w.blok,periode,jenisKas:kas,nominal,status:"BELUM"}); } alert('Generate selesai '+valid.length); load(); tutup('modalGenerate'); }
+async function bayar(id){ const t=tagihan.find(x=>x.id===id); if(!t) return; const newStatus=t.status==="LUNAS"?"BELUM":"LUNAS"; await db.collection("tagihan").doc(id).update({status:newStatus}); if(newStatus==="LUNAS"){ await db.collection("transaksi").doc(String(Date.now())).set({id:String(Date.now()), tagihanId:id, tipe:"MASUK", kategori:"Iuran Warga", jenisKas:t.jenisKas, nominal:t.nominal, keterangan:`Iuran ${t.nama} Blok ${t.blok} - ${t.periode}`, tanggal:new Date().toISOString().slice(0,10), bukti:"-"}); } load(); }
+async function simpanTrx(){ const tipe=document.getElementById('trxTipe').value; const jenisKas=document.getElementById('trxKas').value; const nominal=Number(document.getElementById('trxNominal').value)||0; const ket=document.getElementById('trxKet').value; const tgl=document.getElementById('trxTgl').value; let bukti="-"; const f=document.getElementById('trxBukti').files[0]; if(f){ bukti=await new Promise(r=>{ const fr=new FileReader(); fr.onload=e=>r(e.target.result); fr.readAsDataURL(f); }); } const obj={id:String(Date.now()), tagihanId:"", tipe, kategori:tipe==="MASUK"?"Pemasukan":"Pengeluaran", jenisKas, nominal, keterangan:ket, tanggal:tgl, bukti}; await db.collection("transaksi").doc(obj.id).set(obj); load(); tutup('modalMasuk'); }
+async function hapusTrx(id){ if(!confirm('Hapus?')) return; await db.collection("transaksi").doc(id).delete(); load(); }
+function exportExcel(){ const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(warga),"Warga"); XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(tagihan),"Tagihan"); XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(transaksi),"Transaksi"); XLSX.writeFile(wb, `Backup-${new Date().toISOString().slice(0,10)}.xlsx`); }
+function downloadPdf(tipe){ alert('Gunakan Export Excel untuk '+tipe); }
+window.onload=()=>{ refreshKas(); load(); nav('dashboard'); };
+</script>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a2867f3ddabaea81',t:'MTc4NjI3NTc0Mg=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
