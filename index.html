@@ -51,7 +51,7 @@
                             RT
                         </div>
                         <div>
-                            <h1 class="font-extrabold text-base leading-tight text-slate-900">TKR RT.02 RW.07</h1>
+                            <h1 class="font-extrabold text-base leading-tight text-slate-900">TKR RT.02 RW.07</h1><span class="ml-2 text-[10px] bg-emerald-500 text-white px-2 py-1 rounded-full">FIX Hemat Kuota</span>
                             <p class="text-[11px] text-slate-600 font-medium">Taman Kertamukti Residence - Warga Blok C</p>
                         </div>
                     </div>
@@ -801,13 +801,11 @@
         async function syncTransaksiKeCloudClean() {
             if(!firebaseConnected) return;
             try {
-                // sync incremental: cukup sync transaksi terakhir (optimasi)
-                // untuk simpel, sync batch 450 terakhir
-                let toSync = dataTransaksi.slice(-450);
-                for(let tr of toSync){
-                    let doc = {...tr, bukti: tr.bukti && tr.bukti.length > 900000 ? "[GAMBAR_NOTA_TERPOTONG]" : tr.bukti};
-                    await db.collection("transaksi").doc(String(tr.id)).set(doc, {merge:true});
-                }
+                // HEMAT KUOTA: cuma sync 1 transaksi terbaru, bukan 450
+                const tr = dataTransaksi[dataTransaksi.length-1];
+                if(!tr) return;
+                let doc = {...tr, bukti: tr.bukti && tr.bukti.length > 900000 ? "[GAMBAR_NOTA_TERPOTONG]" : tr.bukti};
+                await db.collection("transaksi").doc(String(tr.id)).set(doc, {merge:true});
             } catch(e){ console.log("sync transaksi error", e); }
         }
         async function syncWargaKeCloudSingle(w){
