@@ -1339,7 +1339,7 @@
             document.getElementById('w-nominal').value = "20000";
         }
 
-        function simpanWargaData() {
+        async function simpanWargaData() {
             if(!isAdminLoggedIn) { alert("Akses ditolak!"); return; }
             const editId = document.getElementById('edit-id-warga').value;
             const nama = document.getElementById('w-nama').value.trim();
@@ -1365,7 +1365,7 @@
             simpanLocalState(); resetFormWarga(); renderWargaList();
             
             // Sync ke Firebase (single doc)
-            if(firebaseConnected) syncWargaKeCloudSingle(dataObj);
+            if(firebaseConnected){ try{ await syncWargaKeCloudSingle(dataObj); console.log('Warga saved to Firebase'); }catch(e){ alert('Gagal simpan ke Firebase: '+e.message); return; } }
 
             tulisLog("TAMBAH/EDIT_WARGA", `${dataObj.nama} Blok ${dataObj.blok} - ${dataObj.status} Rp ${dataObj.nominal}`);
             alert("Data warga berhasil disimpan! (Firebase)");
@@ -2058,5 +2058,5 @@
             doc.save(namaFile); tutupModalPdf();
         }
     </script>
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a28687df5d8db5bd',t:'MTc4NjI3NjA5NQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a28692d8ede3aa11',t:'MTc4NjI3NjU0NQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
