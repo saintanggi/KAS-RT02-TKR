@@ -549,9 +549,11 @@
                 <div>
                     <label class="block text-[10px] font-bold text-slate-500 mb-1">1. Pilih Jenis Laporan PDF</label>
                     <select id="pdf-jenis-laporan" onchange="gantiJenisLaporanPdf(this.value)" class="w-full border p-2.5 rounded-xl outline-none font-bold text-slate-700 bg-slate-50 cursor-pointer">
-                        <option value="TRANSAKSI">📂 Laporan Riwayat Transaksi Kas</option>
-                        <option value="LUNAS">✅ Laporan Warga Sudah Lunas (Per Bulan)</option>
-                        <option value="BELUM">❌ Laporan Warga Belum Bayar / Tunggakan</option>
+                        <option value="PENGELUARAN">🔴 Laporan Khusus Pengeluaran Kas Saja</option>
+                        <option value="PEMASUKAN">🟢 Laporan Khusus Pemasukan Kas Saja</option>
+                        <option value="TRANSAKSI">📂 Laporan Seluruh Riwayat Kas (Masuk & Keluar)</option>
+                        <option value="LUNAS">✅ Laporan Rekap Warga Sudah Lunas (Per Bulan)</option>
+                        <option value="BELUM">❌ Laporan Rekap Warga Belum Bayar / Tunggakan</option>
                     </select>
                 </div>
 
@@ -1266,7 +1268,7 @@
         function gantiJenisLaporanPdf(tipe) {
             const filterTransaksi = document.getElementById('container-filter-transaksi');
             const filterTagihan = document.getElementById('container-filter-tagihan');
-            if (tipe === 'TRANSAKSI') {
+            if (tipe === 'TRANSAKSI' || tipe === 'PENGELUARAN' || tipe === 'PEMASUKAN') {
                 filterTransaksi.classList.remove('hidden');
                 filterTagihan.classList.add('hidden');
             } else {
@@ -2382,7 +2384,17 @@
             const jenisLaporan = document.getElementById('pdf-jenis-laporan').value;
             const pilihanJenisKas = document.getElementById('pdf-jeniskas').value;
 
-            if (jenisLaporan === 'TRANSAKSI') {
+            if (jenisLaporan === 'PENGELUARAN') {
+                const tglMulai = document.getElementById('pdf-tgl-mulai').value;
+                const tglSelesai = document.getElementById('pdf-tgl-selesai').value;
+                if (!tglMulai || !tglSelesai) return alert("Mohon tentukan rentang tanggal laporan!");
+                downloadPdfPengeluaran(tglMulai, tglSelesai, pilihanJenisKas);
+            } else if (jenisLaporan === 'PEMASUKAN') {
+                const tglMulai = document.getElementById('pdf-tgl-mulai').value;
+                const tglSelesai = document.getElementById('pdf-tgl-selesai').value;
+                if (!tglMulai || !tglSelesai) return alert("Mohon tentukan rentang tanggal laporan!");
+                downloadPdfPemasukan(tglMulai, tglSelesai, pilihanJenisKas);
+            } else if (jenisLaporan === 'TRANSAKSI') {
                 const tglMulai = document.getElementById('pdf-tgl-mulai').value;
                 const tglSelesai = document.getElementById('pdf-tgl-selesai').value;
                 if (!tglMulai || !tglSelesai) return alert("Mohon tentukan rentang tanggal laporan!");
@@ -2391,6 +2403,229 @@
                 const periodeBulan = document.getElementById('pdf-periode-bulan').value;
                 downloadPdfStatusWarga(jenisLaporan, periodeBulan, pilihanJenisKas);
             }
+        }
+
+        // ================= DOWNLOAD LAPORAN KHUSUS PENGELUARAN =================
+        function downloadPdfPengeluaran(tglMulai, tglSelesai, pilihanJenisKas) {
+            const filteredData = dataTransaksi.filter(t => {
+                if (!t || t.tipe !== "KELUAR") return false;
+                const matchTanggal = (!tglMulai || t.tanggal >= tglMulai) && (!tglSelesai || t.tanggal <= tglSelesai);
+                const matchKas = (pilihanJenisKas === "SEMUA" || (t.jenisKas && String(t.jenisKas).trim().toLowerCase() === String(pilihanJenisKas).trim().toLowerCase()));
+                return matchTanggal && matchKas;
+            });
+
+            filteredData.sort((a, b) => String(a.tanggal || "").localeCompare(String(b.tanggal || "")));
+
+            let totalKeluar = 0;
+            filteredData.forEach(t => {
+                totalKeluar += Number(t.nominal) || 0;
+            });
+
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+
+            // Header Judul
+            doc.setFont("helvetica", "bold"); 
+            doc.setFontSize(14); 
+            doc.setTextColor(185, 28, 28);
+            doc.text("LAPORAN KHUSUS PENGELUARAN KAS RT.02", 14, 15);
+
+            doc.setTextColor(0, 0, 0);
+            doc.setFont("helvetica", "normal"); 
+            doc.setFontSize(10);
+            doc.text(`Jenis Kas: ${pilihanJenisKas}`, 14, 22); 
+            doc.text(`Periode Pengeluaran: ${tglMulai} s/d ${tglSelesai}`, 14, 28);
+            doc.text(`Total Transaksi Pengeluaran: ${filteredData.length} Catatan`, 14, 34);
+
+            doc.setLineWidth(0.5); 
+            doc.setDrawColor(200, 200, 200);
+            doc.line(14, 39, 196, 39);
+
+            // Ringkasan Card Total Pengeluaran
+            doc.setFillColor(254, 242, 242);
+            doc.setDrawColor(252, 165, 165);
+            doc.roundedRect(14, 43, 182, 16, 2, 2, "FD");
+            doc.setFont("helvetica", "bold"); 
+            doc.setFontSize(11);
+            doc.setTextColor(153, 27, 27);
+            doc.text(`TOTAL PENGELUARAN: Rp ${totalKeluar.toLocaleString('id-ID')}`, 20, 53);
+
+            // Tabel Rincian
+            let startY = 72;
+            doc.setFont("helvetica", "bold"); 
+            doc.setFontSize(10);
+            doc.setTextColor(30, 41, 59);
+            doc.text("Rincian Pengeluaran:", 14, 66);
+
+            doc.setFillColor(241, 245, 249); 
+            doc.rect(14, startY - 5, 182, 8, "F");
+            doc.setFontSize(8.5);
+            doc.text("No", 16, startY); 
+            doc.text("Tanggal", 26, startY); 
+            doc.text("Keterangan Pengeluaran", 54, startY); 
+            doc.text("Jenis Kas", 136, startY);
+            doc.text("Nominal (Rp)", 194, startY, { align: "right" });
+            startY += 8;
+
+            doc.setFont("helvetica", "normal"); 
+            doc.setFontSize(8);
+
+            if (filteredData.length === 0) {
+                doc.text("Tidak ada data pengeluaran pada rentang tanggal dan kategori ini.", 14, startY);
+            } else {
+                filteredData.forEach((t, index) => {
+                    if (startY > 270) { 
+                        doc.addPage(); 
+                        startY = 20;
+                        doc.setFillColor(241, 245, 249); 
+                        doc.rect(14, startY - 5, 182, 8, "F");
+                        doc.setFont("helvetica", "bold");
+                        doc.text("No", 16, startY); 
+                        doc.text("Tanggal", 26, startY); 
+                        doc.text("Keterangan Pengeluaran", 54, startY); 
+                        doc.text("Jenis Kas", 136, startY);
+                        doc.text("Nominal (Rp)", 194, startY, { align: "right" });
+                        startY += 8;
+                        doc.setFont("helvetica", "normal");
+                    }
+                    let tanggalBersih = t.tanggal ? String(t.tanggal).substring(0, 10) : "-";
+                    let nominalBersih = Number(t.nominal) || 0;
+                    let ketBersih = (t.keterangan || "-").substring(0, 45);
+                    let kasBersih = (t.jenisKas || "-").substring(0, 20);
+
+                    doc.text(`${index + 1}`, 16, startY);
+                    doc.text(tanggalBersih, 26, startY);
+                    doc.text(ketBersih, 54, startY);
+                    doc.text(kasBersih, 136, startY);
+                    doc.text(`- Rp ${nominalBersih.toLocaleString('id-ID')}`, 194, startY, { align: "right" });
+                    startY += 6.5;
+                });
+            }
+
+            startY += 3;
+            doc.setLineWidth(0.4); 
+            doc.setDrawColor(185, 28, 28);
+            doc.line(14, startY, 196, startY);
+            startY += 7;
+            doc.setFont("helvetica", "bold"); 
+            doc.setFontSize(10);
+            doc.setTextColor(185, 28, 28);
+            doc.text(`Total Pengeluaran: Rp ${totalKeluar.toLocaleString('id-ID')}`, 14, startY);
+
+            let cleanTglMulai = tglMulai ? tglMulai.replace(/[^a-zA-Z0-9]/g, '_') : 'awal';
+            let cleanTglSelesai = tglSelesai ? tglSelesai.replace(/[^a-zA-Z0-9]/g, '_') : 'akhir';
+            doc.save(`Laporan_Pengeluaran_RT02_${cleanTglMulai}_sd_${cleanTglSelesai}.pdf`);
+            tutupModalPdf();
+        }
+
+        // ================= DOWNLOAD LAPORAN KHUSUS PEMASUKAN =================
+        function downloadPdfPemasukan(tglMulai, tglSelesai, pilihanJenisKas) {
+            const filteredData = dataTransaksi.filter(t => {
+                if (!t || t.tipe !== "MASUK") return false;
+                const matchTanggal = (!tglMulai || t.tanggal >= tglMulai) && (!tglSelesai || t.tanggal <= tglSelesai);
+                const matchKas = (pilihanJenisKas === "SEMUA" || (t.jenisKas && String(t.jenisKas).trim().toLowerCase() === String(pilihanJenisKas).trim().toLowerCase()));
+                return matchTanggal && matchKas;
+            });
+
+            filteredData.sort((a, b) => String(a.tanggal || "").localeCompare(String(b.tanggal || "")));
+
+            let totalMasuk = 0;
+            filteredData.forEach(t => {
+                totalMasuk += Number(t.nominal) || 0;
+            });
+
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+
+            doc.setFont("helvetica", "bold"); 
+            doc.setFontSize(14); 
+            doc.setTextColor(21, 128, 61);
+            doc.text("LAPORAN KHUSUS PEMASUKAN KAS RT.02", 14, 15);
+
+            doc.setTextColor(0, 0, 0);
+            doc.setFont("helvetica", "normal"); 
+            doc.setFontSize(10);
+            doc.text(`Jenis Kas: ${pilihanJenisKas}`, 14, 22); 
+            doc.text(`Periode Pemasukan: ${tglMulai} s/d ${tglSelesai}`, 14, 28);
+            doc.text(`Total Transaksi Pemasukan: ${filteredData.length} Catatan`, 14, 34);
+
+            doc.setLineWidth(0.5); 
+            doc.setDrawColor(200, 200, 200);
+            doc.line(14, 39, 196, 39);
+
+            doc.setFillColor(240, 253, 244);
+            doc.setDrawColor(187, 247, 208);
+            doc.roundedRect(14, 43, 182, 16, 2, 2, "FD");
+            doc.setFont("helvetica", "bold"); 
+            doc.setFontSize(11);
+            doc.setTextColor(21, 128, 61);
+            doc.text(`TOTAL PEMASUKAN: Rp ${totalMasuk.toLocaleString('id-ID')}`, 20, 53);
+
+            let startY = 72;
+            doc.setFont("helvetica", "bold"); 
+            doc.setFontSize(10);
+            doc.setTextColor(30, 41, 59);
+            doc.text("Rincian Pemasukan:", 14, 66);
+
+            doc.setFillColor(241, 245, 249); 
+            doc.rect(14, startY - 5, 182, 8, "F");
+            doc.setFontSize(8.5);
+            doc.text("No", 16, startY); 
+            doc.text("Tanggal", 26, startY); 
+            doc.text("Keterangan Pemasukan", 54, startY); 
+            doc.text("Jenis Kas", 136, startY);
+            doc.text("Nominal (Rp)", 194, startY, { align: "right" });
+            startY += 8;
+
+            doc.setFont("helvetica", "normal"); 
+            doc.setFontSize(8);
+
+            if (filteredData.length === 0) {
+                doc.text("Tidak ada data pemasukan pada rentang tanggal dan kategori ini.", 14, startY);
+            } else {
+                filteredData.forEach((t, index) => {
+                    if (startY > 270) { 
+                        doc.addPage(); 
+                        startY = 20;
+                        doc.setFillColor(241, 245, 249); 
+                        doc.rect(14, startY - 5, 182, 8, "F");
+                        doc.setFont("helvetica", "bold");
+                        doc.text("No", 16, startY); 
+                        doc.text("Tanggal", 26, startY); 
+                        doc.text("Keterangan Pemasukan", 54, startY); 
+                        doc.text("Jenis Kas", 136, startY);
+                        doc.text("Nominal (Rp)", 194, startY, { align: "right" });
+                        startY += 8;
+                        doc.setFont("helvetica", "normal");
+                    }
+                    let tanggalBersih = t.tanggal ? String(t.tanggal).substring(0, 10) : "-";
+                    let nominalBersih = Number(t.nominal) || 0;
+                    let ketBersih = (t.keterangan || "-").substring(0, 45);
+                    let kasBersih = (t.jenisKas || "-").substring(0, 20);
+
+                    doc.text(`${index + 1}`, 16, startY);
+                    doc.text(tanggalBersih, 26, startY);
+                    doc.text(ketBersih, 54, startY);
+                    doc.text(kasBersih, 136, startY);
+                    doc.text(`+ Rp ${nominalBersih.toLocaleString('id-ID')}`, 194, startY, { align: "right" });
+                    startY += 6.5;
+                });
+            }
+
+            startY += 3;
+            doc.setLineWidth(0.4); 
+            doc.setDrawColor(21, 128, 61);
+            doc.line(14, startY, 196, startY);
+            startY += 7;
+            doc.setFont("helvetica", "bold"); 
+            doc.setFontSize(10);
+            doc.setTextColor(21, 128, 61);
+            doc.text(`Total Pemasukan: Rp ${totalMasuk.toLocaleString('id-ID')}`, 14, startY);
+
+            let cleanTglMulai = tglMulai ? tglMulai.replace(/[^a-zA-Z0-9]/g, '_') : 'awal';
+            let cleanTglSelesai = tglSelesai ? tglSelesai.replace(/[^a-zA-Z0-9]/g, '_') : 'akhir';
+            doc.save(`Laporan_Pemasukan_RT02_${cleanTglMulai}_sd_${cleanTglSelesai}.pdf`);
+            tutupModalPdf();
         }
 
         function downloadPdfTransaksi(tglMulai, tglSelesai, pilihanJenisKas) {
@@ -2599,5 +2834,5 @@
     <!-- Hidden Input untuk Upload Ulang Nota -->
     <input type="file" id="input-upload-ulang-nota" accept="image/*" class="hidden" onchange="prosesUploadUlangNota(event)">
 
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a28e0d61084fea7b',t:'MTc4NjM1NDk2NA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a28e17271e7c4b1b',t:'MTc4NjM1NTM2NA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
