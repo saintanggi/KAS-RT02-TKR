@@ -1275,30 +1275,171 @@
             }
         }
 
-        // ================= SISTEM PREVIEW BUKTI NOTA (LIGHTBOX MODAL) =================
-        function bukaLightboxTrx(trxId) {
-            const tr = dataTransaksi.find(x => String(x.id) === String(trxId));
-            if (!tr || !tr.bukti || tr.bukti === "-" || tr.bukti === "" || tr.bukti === "[GAMBAR_NOTA_TERPOTONG]") {
-                return alert("⚠️ Bukti nota tidak tersedia atau belum diupload untuk transaksi ini.");
+        // ================= SISTEM PREVIEW BUKTI NOTA (LIGHTBOX MODAL LENGKAP) =================
+        let aktifTrxIdUntukUpload = null;
+
+        // Normalisasi URL gambar (Data URI, Raw Base64, Google Drive, URL biasa)
+        function normalisasiUrlGambar(rawStr) {
+            if (!rawStr || typeof rawStr !== 'string') return null;
+            let s = rawStr.trim();
+            if (s === "" || s === "-" || s === "null" || s === "undefined" || s === "[GAMBAR_NOTA_TERPOTONG]") return null;
+
+            // Sudah format Data URI
+            if (s.startsWith("data:image/")) return s;
+
+            // Raw Base64 tanpa header data:image
+            if (s.startsWith("/9j/") || s.startsWith("/9j/4")) return "data:image/jpeg;base64," + s;
+            if (s.startsWith("iVBORw0KGgo")) return "data:image/png;base64," + s;
+            if (s.startsWith("R0lGOD")) return "data:image/gif;base64," + s;
+            if (s.startsWith("UklGR")) return "data:image/webp;base64," + s;
+            if (s.startsWith("PHN2Zy")) return "data:image/svg+xml;base64," + s;
+
+            // Google Drive URL
+            if (s.includes("drive.google.com")) {
+                let m = s.match(/\/d\/([a-zA-Z0-9_-]+)/) || s.match(/id=([a-zA-Z0-9_-]+)/);
+                if (m && m[1]) return "https://lh3.googleusercontent.com/d/" + m[1];
             }
 
+            // Web URL (http/https)
+            if (s.startsWith("http://") || s.startsWith("https://")) return s;
+
+            // Fallback: Jika string panjang tanpa spasi, anggap base64 JPEG
+            if (s.length > 50 && !s.includes(" ")) {
+                return "data:image/jpeg;base64," + s;
+            }
+
+            return s;
+        }
+
+        function bukaLightboxTrx(trxId) {
+            aktifTrxIdUntukUpload = trxId;
+            const tr = dataTransaksi.find(x => String(x.id) === String(trxId));
+            if (!tr) return alert("Data transaksi tidak ditemukan!");
+
             const imgEl = document.getElementById('lightbox-img');
+            const errBox = document.getElementById('lightbox-error-box');
             const judulEl = document.getElementById('lightbox-judul');
             const subEl = document.getElementById('lightbox-subjudul');
             const infoEl = document.getElementById('lightbox-info');
             const downloadBtn = document.getElementById('lightbox-download-btn');
+            const btnGanti = document.getElementById('btn-ganti-nota-admin');
 
-            if (imgEl) imgEl.src = tr.bukti;
             if (judulEl) judulEl.innerText = tr.keterangan || "Bukti Nota Transaksi";
             if (subEl) subEl.innerText = `${tr.tanggal || "-"} | ${tr.jenisKas || "-"} • Kategori: ${tr.kategori || "Pengeluaran"}`;
             if (infoEl) infoEl.innerHTML = `<span class="text-red-600 font-extrabold text-xs">Nominal: - Rp ${(Number(tr.nominal)||0).toLocaleString('id-ID')}</span>`;
-            if (downloadBtn) {
-                downloadBtn.href = tr.bukti;
-                let cleanFileName = `Nota_${(tr.keterangan || "trx").replace(/[^a-zA-Z0-9]/g, '_')}_${tr.tanggal || "tgl"}.jpg`;
-                downloadBtn.download = tr.fileName || cleanFileName;
+
+            // Tampilkan tombol ganti nota jika admin
+            if (btnGanti) {
+                if (isAdminLoggedIn) {
+                    btnGanti.classList.remove('hidden');
+                    btnGanti.classList.add('flex');
+                } else {
+                    btnGanti.classList.add('hidden');
+                    btnGanti.classList.remove('flex');
+                }
+            }
+
+            const normalizedSrc = normalisasiUrlGambar(tr.bukti);
+            if (!normalizedSrc) {
+                // Tampilkan error box langsung jika tidak ada gambar valid
+                if (imgEl) imgEl.classList.add('hidden');
+                if (errBox) { errBox.classList.remove('hidden'); errBox.classList.add('flex'); }
+                if (downloadBtn) downloadBtn.classList.add('hidden');
+            } else {
+                if (imgEl) {
+                    imgEl.classList.remove('hidden');
+                    imgEl.src = normalizedSrc;
+                }
+                if (errBox) {
+                    errBox.classList.add('hidden');
+                    errBox.classList.remove('flex');
+                }
+                if (downloadBtn) {
+                    downloadBtn.classList.remove('hidden');
+                    downloadBtn.href = normalizedSrc;
+                    let cleanFileName = `Nota_${(tr.keterangan || "trx").replace(/[^a-zA-Z0-9]/g, '_')}_${tr.tanggal || "tgl"}.jpg`;
+                    downloadBtn.download = tr.fileName || cleanFileName;
+                }
             }
 
             toggleModal('modal-lightbox-nota', 'open');
+        }
+
+        function handleImageSuccess() {
+            const imgEl = document.getElementById('lightbox-img');
+            const errBox = document.getElementById('lightbox-error-box');
+            if (imgEl) imgEl.classList.remove('hidden');
+            if (errBox) { errBox.classList.add('hidden'); errBox.classList.remove('flex'); }
+        }
+
+        function handleImageError() {
+            const imgEl = document.getElementById('lightbox-img');
+            const errBox = document.getElementById('lightbox-error-box');
+            const downloadBtn = document.getElementById('lightbox-download-btn');
+            if (imgEl) imgEl.classList.add('hidden');
+            if (errBox) { errBox.classList.remove('hidden'); errBox.classList.add('flex'); }
+            if (downloadBtn) downloadBtn.classList.add('hidden');
+        }
+
+        function bukaInputUploadUlangNota() {
+            if (!isAdminLoggedIn) {
+                return alert("Silakan Login sebagai Admin terlebih dahulu untuk mengupload atau mengganti foto nota.");
+            }
+            const inp = document.getElementById('input-upload-ulang-nota');
+            if (inp) {
+                inp.value = "";
+                inp.click();
+            }
+        }
+
+        function prosesUploadUlangNota(event) {
+            const file = event.target.files && event.target.files[0];
+            if (!file) return;
+            if (!aktifTrxIdUntukUpload) return alert("Pilih transaksi terlebih dahulu!");
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.src = e.target.result;
+                img.onload = function() {
+                    const canvas = document.createElement('canvas');
+                    let width = img.width;
+                    let height = img.height;
+                    const maxDim = 1200;
+                    if (width > height) {
+                        if (width > maxDim) { height *= maxDim / width; width = maxDim; }
+                    } else {
+                        if (height > maxDim) { width *= maxDim / height; height = maxDim; }
+                    }
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    const sharpBase64 = canvas.toDataURL('image/jpeg', 0.85);
+
+                    // Update transaksi
+                    let tr = dataTransaksi.find(x => String(x.id) === String(aktifTrxIdUntukUpload));
+                    if (tr) {
+                        tr.bukti = sharpBase64;
+                        tr.fileName = file.name || "nota_diperbarui.jpg";
+                        dataTransaksi = bersihkanDataTransaksi(dataTransaksi);
+                        simpanLocalState();
+                        renderRiwayatTransaksi();
+
+                        // Sync ke Firebase
+                        if (firebaseConnected && db) {
+                            try {
+                                db.collection("transaksi").doc(String(tr.id)).set(tr, {merge:true});
+                            } catch(err) { console.error("Firebase sync error:", err); }
+                        }
+
+                        // Refresh tampilan modal
+                        bukaLightboxTrx(aktifTrxIdUntukUpload);
+                        alert("✅ Foto nota berhasil diperbarui dan tersimpan!");
+                    }
+                };
+            };
+            reader.readAsDataURL(file);
         }
 
         function tutupLightboxTrx() {
@@ -1306,11 +1447,15 @@
         }
 
         function bukaLightbox(url) {
-            if (!url || url === "-" || url === "" || url === "[GAMBAR_NOTA_TERPOTONG]") {
+            const normalized = normalisasiUrlGambar(url);
+            if (!normalized) {
                 return alert("Tidak ada bukti nota untuk transaksi ini.");
             }
             const imgEl = document.getElementById('lightbox-img');
-            if (imgEl) imgEl.src = url;
+            if (imgEl) {
+                imgEl.classList.remove('hidden');
+                imgEl.src = normalized;
+            }
             toggleModal('modal-lightbox-nota', 'open');
         }
 
@@ -2414,18 +2559,36 @@
                 </div>
                 <button onclick="tutupLightboxTrx()" class="text-slate-300 hover:text-white text-2xl font-bold leading-none p-1 transition">&times;</button>
             </div>
-            <div class="p-4 overflow-y-auto custom-scroll flex flex-col items-center justify-center bg-slate-100 min-h-[280px]">
-                <img id="lightbox-img" src="" alt="Bukti Nota Pengeluaran" class="max-h-[60vh] w-auto max-w-full object-contain rounded-xl shadow-md border border-slate-200 bg-white">
+            
+            <div class="p-4 overflow-y-auto custom-scroll flex flex-col items-center justify-center bg-slate-100 min-h-[280px] relative">
+                <!-- Gambar Nota Utama -->
+                <img id="lightbox-img" src="" alt="Bukti Nota Pengeluaran" onerror="handleImageError()" onload="handleImageSuccess()" class="max-h-[60vh] w-auto max-w-full object-contain rounded-xl shadow-md border border-slate-200 bg-white transition">
+                
+                <!-- Box Pesan jika gambar lama rusak / terpotong -->
+                <div id="lightbox-error-box" class="hidden flex-col items-center justify-center text-center p-6 bg-white border border-amber-200 rounded-2xl shadow-sm space-y-3 max-w-md my-auto">
+                    <div class="w-12 h-12 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center text-2xl">⚠️</div>
+                    <div>
+                        <h4 class="font-bold text-slate-800 text-sm">Gambar Nota Lama Tidak Dapat Dibaca</h4>
+                        <p class="text-[11px] text-slate-500 mt-1">Data gambar nota ini terpotong atau rusak pada versi sistem sebelumnya. Anda dapat memperbaruinya dengan mengupload foto nota baru.</p>
+                    </div>
+                    <button onclick="bukaInputUploadUlangNota()" id="btn-upload-error-box" class="bg-amber-600 hover:bg-amber-700 text-white font-bold px-4 py-2 rounded-xl transition shadow text-xs flex items-center gap-1.5">
+                        <span>📤 Upload Ulang Foto Nota</span>
+                    </button>
+                </div>
             </div>
+
             <div class="p-3.5 bg-white border-t border-slate-200 flex flex-wrap items-center justify-between gap-3">
                 <div id="lightbox-info" class="text-slate-700 font-semibold text-[11px]">
                     -
                 </div>
                 <div class="flex items-center gap-2">
-                    <a id="lightbox-download-btn" href="#" download="bukti-nota.jpg" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-3.5 py-2 rounded-xl transition shadow-sm flex items-center gap-1.5 text-xs">
+                    <button onclick="bukaInputUploadUlangNota()" id="btn-ganti-nota-admin" class="hidden bg-amber-500 hover:bg-amber-600 text-white font-bold px-3 py-1.5 rounded-lg transition shadow-sm items-center gap-1 text-xs">
+                        <span>📤 Ganti Nota</span>
+                    </button>
+                    <a id="lightbox-download-btn" href="#" download="bukti-nota.jpg" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-3.5 py-1.5 rounded-lg transition shadow-sm flex items-center gap-1.5 text-xs">
                         <span>⬇️ Unduh Nota</span>
                     </a>
-                    <button onclick="tutupLightboxTrx()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold px-3.5 py-2 rounded-xl transition text-xs">
+                    <button onclick="tutupLightboxTrx()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold px-3.5 py-1.5 rounded-lg transition text-xs">
                         Tutup
                     </button>
                 </div>
@@ -2433,5 +2596,8 @@
         </div>
     </div>
 
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a28e05634d47b5c4',t:'MTc4NjM1NDYzNw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+    <!-- Hidden Input untuk Upload Ulang Nota -->
+    <input type="file" id="input-upload-ulang-nota" accept="image/*" class="hidden" onchange="prosesUploadUlangNota(event)">
+
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a28e0d61084fea7b',t:'MTc4NjM1NDk2NA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
