@@ -106,6 +106,31 @@
                     </button>
                 </div>
 
+                                <!-- KOTAK PENCARIAN TERPADU (LIVE SEARCH TAGIHAN & TRANSAKSI) -->
+                <div class="bg-white/90 backdrop-blur-md p-4 rounded-2xl shadow-[0_4px_15px_rgb(0,0,0,0.05)] border border-blue-100 ring-1 ring-blue-500/20 space-y-2">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                        <div class="flex items-center gap-2">
+                            <span class="text-lg">⚡</span>
+                            <div>
+                                <h3 class="font-bold text-slate-800 text-xs">Pencarian Langsung (Tagihan & Riwayat Kas)</h3>
+                                <p class="text-[11px] text-slate-500">Ketik Nama atau Blok warga untuk langsung memfilter tabel Tagihan dan Transaksi secara bersamaan.</p>
+                            </div>
+                        </div>
+                        <button onclick="bersihkanPencarian()" id="btn-clear-search" class="hidden text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-3 py-1.5 rounded-lg transition items-center gap-1">
+                            ✕ Hapus Pencarian
+                        </button>
+                    </div>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-blue-600 font-bold text-sm">
+                            🔍
+                        </div>
+                        <input type="text" id="cari-global-utama" oninput="setPencarianBersama(this.value)" placeholder="Ketik Nama warga atau Blok (contoh: Sutrisno, A1, B2/05, dll)..." class="w-full bg-blue-50/50 hover:bg-blue-50/80 focus:bg-white border border-blue-200 text-xs pl-10 pr-10 py-3 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-medium transition shadow-sm">
+                        <button type="button" onclick="bersihkanPencarian()" class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 cursor-pointer">
+                            ✕
+                        </button>
+                    </div>
+                </div>
+
                 <!-- DASHBOARD UTAMA: GENERATE TAGIHAN & PENCARIAN -->
                 <div class="bg-white/90 backdrop-blur-md p-5 rounded-2xl shadow-[0_4px_15px_rgb(0,0,0,0.05)] border border-white/50 space-y-3">
                     <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
@@ -135,7 +160,7 @@
                     </div>
 
                     <div class="pt-1">
-                        <input type="text" id="cari-tagihan" oninput="gantiPencarianTagihan()" placeholder="🔍 Cari tagihan berdasarkan Nama, Alamat/Blok, Nominal, atau Status (Lunas/Belum)..." class="w-full bg-white border border-slate-200 text-xs px-3.5 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 shadow-sm">
+                        <input type="text" id="cari-tagihan" oninput="setPencarianBersama(this.value)" placeholder="🔍 Ketik Nama atau Blok (otomatis mencari di Tagihan & Riwayat Transaksi)..." class="w-full bg-white border border-slate-200 text-xs px-3.5 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 shadow-sm">
                     </div>
 
                     <div class="border border-slate-100 rounded-xl overflow-hidden bg-white">
@@ -179,7 +204,7 @@
                     </div>
 
                     <div>
-                        <input type="text" id="cari-transaksi" oninput="gantiPencarianTransaksi()" placeholder="🔍 Cari transaksi berdasarkan keterangan, kategori, nominal, atau tanggal..." class="w-full bg-white border border-slate-200 text-xs px-3.5 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 shadow-sm">
+                        <input type="text" id="cari-transaksi" oninput="setPencarianBersama(this.value)" placeholder="🔍 Ketik Nama, Blok, keterangan, kategori, nominal, tanggal..." class="w-full bg-white border border-slate-200 text-xs px-3.5 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 shadow-sm">
                     </div>
 
                     <div class="border border-slate-100 rounded-xl overflow-hidden bg-white">
@@ -1449,7 +1474,7 @@
             document.getElementById('btn-next-warga').disabled = halamanAktifWarga === totalHalaman;
         }
 
-        function gantiPencarianWarga() { halamanAktifWarga = 1; renderWargaList(); }
+        // gantiPencarianWarga terintegrasi dengan setPencarianBersama
         function gantiHalamanWarga(arah) { halamanAktifWarga += arah; renderWargaList(); }
 
         function editWargaData(id) {
@@ -1596,8 +1621,9 @@
             if(!tbody) return;
             tbody.innerHTML = '';
 
-            const inputCari = document.getElementById('cari-tagihan');
-            const keyword = inputCari ? inputCari.value.toLowerCase().trim() : "";
+            const inputCari = document.getElementById('cari-tagihan') || document.getElementById('cari-global-utama');
+            const keyword = inputCari ? inputCari.value.toLowerCase().trim() : (globalSearchKeyword || "").toLowerCase().trim();
+            const cleanKeyword = keyword.replace(/blok/g, '').replace(/[\s\/\-\.]/g, '');
 
             const filtered = dataTagihan.filter(t => {
                 if(!t) return false;
@@ -1611,8 +1637,21 @@
                 if (!matchBulan || !matchKas) return false;
                 if (!keyword) return true;
 
-                return (t.nama||'').toLowerCase().includes(keyword) || (t.blok||'').toLowerCase().includes(keyword) ||
-                       (t.status||'').toLowerCase().includes(keyword) || (t.nominal||0).toString().includes(keyword) || (t.jenisKas||'').toLowerCase().includes(keyword);
+                let tNama = String(t.nama || '').toLowerCase();
+                let tBlok = String(t.blok || '').toLowerCase();
+                let tBlokClean = tBlok.replace(/blok/g, '').replace(/[\s\/\-\.]/g, '');
+                let tStatus = String(t.status || '').toLowerCase();
+                let tNominal = String(t.nominal || 0);
+                let tKas = String(t.jenisKas || '').toLowerCase();
+                let tPeriode = String(t.periode || '').toLowerCase();
+
+                return tNama.includes(keyword) || 
+                       tBlok.includes(keyword) || 
+                       (cleanKeyword.length > 0 && tBlokClean.includes(cleanKeyword)) ||
+                       tStatus.includes(keyword) || 
+                       tNominal.includes(keyword) || 
+                       tKas.includes(keyword) ||
+                       tPeriode.includes(keyword);
             });
 
             filtered.sort((a, b) => {
@@ -1673,7 +1712,68 @@
             if(btnNext) btnNext.disabled = halamanAktifTagihan === totalHalaman;
         }
 
-        function gantiPencarianTagihan() { halamanAktifTagihan = 1; renderTagihan(); }
+
+        // ================= SISTEM PENCARIAN TERPADU (LIVE SYNC SEARCH) =================
+        let globalSearchKeyword = "";
+
+        function setPencarianBersama(val) {
+            globalSearchKeyword = (val || "").trim();
+            const lowerVal = globalSearchKeyword.toLowerCase();
+
+            // Sinkronkan semua input pencarian di halaman
+            const inpGlobal = document.getElementById('cari-global-utama');
+            const inpTagihan = document.getElementById('cari-tagihan');
+            const inpTransaksi = document.getElementById('cari-transaksi');
+            const inpWarga = document.getElementById('cari-warga');
+            const btnClear = document.getElementById('btn-clear-search');
+
+            if (inpGlobal && inpGlobal.value !== val) inpGlobal.value = val;
+            if (inpTagihan && inpTagihan.value !== val) inpTagihan.value = val;
+            if (inpTransaksi && inpTransaksi.value !== val) inpTransaksi.value = val;
+            if (inpWarga && inpWarga.value !== val) inpWarga.value = val;
+
+            if (btnClear) {
+                if (globalSearchKeyword.length > 0) {
+                    btnClear.classList.remove('hidden');
+                    btnClear.classList.add('flex');
+                } else {
+                    btnClear.classList.add('hidden');
+                    btnClear.classList.remove('flex');
+                }
+            }
+
+            // Reset pagination ke halaman 1
+            halamanAktifTagihan = 1;
+            halamanAktifTransaksi = 1;
+            halamanAktifWarga = 1;
+
+            // Render ulang tabel tagihan, transaksi, dan warga
+            renderTagihan();
+            renderRiwayatTransaksi();
+            renderWargaList();
+        }
+
+        function gantiPencarianTagihan() {
+            const el = document.getElementById('cari-tagihan');
+            setPencarianBersama(el ? el.value : "");
+        }
+
+        function gantiPencarianTransaksi() {
+            const el = document.getElementById('cari-transaksi');
+            setPencarianBersama(el ? el.value : "");
+        }
+
+        function gantiPencarianWarga() {
+            const el = document.getElementById('cari-warga');
+            setPencarianBersama(el ? el.value : "");
+        }
+
+        function bersihkanPencarian() {
+            setPencarianBersama("");
+            const inpGlobal = document.getElementById('cari-global-utama');
+            if (inpGlobal) inpGlobal.focus();
+        }
+
         function gantiHalamanTagihan(arah) { halamanAktifTagihan += arah; renderTagihan(); }
 
         async function ubahStatusTagihan(id, statusBaru) {
@@ -1793,16 +1893,37 @@
             if(!tbody) return;
             tbody.innerHTML = '';
 
-            const inputCari = document.getElementById('cari-transaksi');
-            const keyword = inputCari ? inputCari.value.toLowerCase().trim() : "";
+            const inputCari = document.getElementById('cari-transaksi') || document.getElementById('cari-global-utama');
+            const keyword = inputCari ? inputCari.value.toLowerCase().trim() : (globalSearchKeyword || "").toLowerCase().trim();
+            const cleanKeyword = keyword.replace(/blok/g, '').replace(/[\s\/\-\.]/g, '');
 
             const filtered = dataTransaksi.filter(t => {
                 if(!t) return false;
                 const matchKas = (kasAktifFilter === "SEMUA" || (t.jenisKas && String(t.jenisKas).trim().toLowerCase() === String(kasAktifFilter).trim().toLowerCase()));
                 if (!matchKas) return false;
                 if (!keyword) return true;
-                return (t.keterangan || "").toLowerCase().includes(keyword) || (t.kategori || "").toLowerCase().includes(keyword) ||
-                       (t.jenisKas || "").toLowerCase().includes(keyword) || (t.nominal || 0).toString().includes(keyword) || (t.tanggal || "").includes(keyword);
+
+                let ket = String(t.keterangan || "").toLowerCase();
+                let ketClean = ket.replace(/blok/g, '').replace(/[\s\/\-\.]/g, '');
+                let kat = String(t.kategori || "").toLowerCase();
+                let kas = String(t.jenisKas || "").toLowerCase();
+                let nom = String(t.nominal || 0);
+                let tgl = String(t.tanggal || "");
+
+                // Cross-reference data tagihan jika ada tagihanId
+                let tagihanM = t.tagihanId ? dataTagihan.find(x => String(x.id) === String(t.tagihanId)) : null;
+                let namaM = tagihanM ? String(tagihanM.nama || '').toLowerCase() : '';
+                let blokM = tagihanM ? String(tagihanM.blok || '').toLowerCase() : '';
+                let blokMClean = blokM.replace(/blok/g, '').replace(/[\s\/\-\.]/g, '');
+
+                return ket.includes(keyword) ||
+                       (cleanKeyword.length > 0 && ketClean.includes(cleanKeyword)) ||
+                       kat.includes(keyword) ||
+                       kas.includes(keyword) ||
+                       nom.includes(keyword) ||
+                       tgl.includes(keyword) ||
+                       (namaM && namaM.includes(keyword)) ||
+                       (blokM && (blokM.includes(keyword) || (cleanKeyword.length > 0 && blokMClean.includes(cleanKeyword))));
             });
 
             filtered.sort((a, b) => Number(b.id) - Number(a.id));
@@ -1855,7 +1976,7 @@
             updateSelectedCount();
         }
 
-        function gantiPencarianTransaksi() { halamanAktifTransaksi = 1; renderRiwayatTransaksi(); }
+        // gantiPencarianTransaksi terintegrasi dengan setPencarianBersama
         function gantiHalamanTransaksi(arah) { halamanAktifTransaksi += arah; renderRiwayatTransaksi(); }
 
         function toggleSelectAllTrx(masterCheckbox) {
@@ -2220,5 +2341,5 @@
             doc.save(namaFile); tutupModalPdf();
         }
     </script>
-</body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a28da79fc92d582b',t:'MTc4NjM1MDc5Ng=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
