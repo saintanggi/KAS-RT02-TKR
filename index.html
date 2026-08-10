@@ -1275,12 +1275,43 @@
             }
         }
 
-        function bukaLightbox(url) {
-            if (url && url !== "-") {
-                window.open(url, '_blank');
-            } else {
-                alert("Tidak ada bukti nota untuk transaksi ini.");
+        // ================= SISTEM PREVIEW BUKTI NOTA (LIGHTBOX MODAL) =================
+        function bukaLightboxTrx(trxId) {
+            const tr = dataTransaksi.find(x => String(x.id) === String(trxId));
+            if (!tr || !tr.bukti || tr.bukti === "-" || tr.bukti === "" || tr.bukti === "[GAMBAR_NOTA_TERPOTONG]") {
+                return alert("⚠️ Bukti nota tidak tersedia atau belum diupload untuk transaksi ini.");
             }
+
+            const imgEl = document.getElementById('lightbox-img');
+            const judulEl = document.getElementById('lightbox-judul');
+            const subEl = document.getElementById('lightbox-subjudul');
+            const infoEl = document.getElementById('lightbox-info');
+            const downloadBtn = document.getElementById('lightbox-download-btn');
+
+            if (imgEl) imgEl.src = tr.bukti;
+            if (judulEl) judulEl.innerText = tr.keterangan || "Bukti Nota Transaksi";
+            if (subEl) subEl.innerText = `${tr.tanggal || "-"} | ${tr.jenisKas || "-"} • Kategori: ${tr.kategori || "Pengeluaran"}`;
+            if (infoEl) infoEl.innerHTML = `<span class="text-red-600 font-extrabold text-xs">Nominal: - Rp ${(Number(tr.nominal)||0).toLocaleString('id-ID')}</span>`;
+            if (downloadBtn) {
+                downloadBtn.href = tr.bukti;
+                let cleanFileName = `Nota_${(tr.keterangan || "trx").replace(/[^a-zA-Z0-9]/g, '_')}_${tr.tanggal || "tgl"}.jpg`;
+                downloadBtn.download = tr.fileName || cleanFileName;
+            }
+
+            toggleModal('modal-lightbox-nota', 'open');
+        }
+
+        function tutupLightboxTrx() {
+            toggleModal('modal-lightbox-nota', 'close');
+        }
+
+        function bukaLightbox(url) {
+            if (!url || url === "-" || url === "" || url === "[GAMBAR_NOTA_TERPOTONG]") {
+                return alert("Tidak ada bukti nota untuk transaksi ini.");
+            }
+            const imgEl = document.getElementById('lightbox-img');
+            if (imgEl) imgEl.src = url;
+            toggleModal('modal-lightbox-nota', 'open');
         }
 
         function refreshDropdowns() {
@@ -1883,14 +1914,33 @@
                     const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, width, height);
                     const sharpBase64 = canvas.toDataURL('image/jpeg', 0.85);
 
-                    let newTrx = { id: String(Date.now() + Math.floor(Math.random() * 1000)), tipe: "KELUAR", kategori: "Pengeluaran", jenisKas, nominal, keterangan, tanggal, bukti: sharpBase64, fileName: fileInput.files[0].name };
+                    let newTrx = { 
+                        id: String(Date.now() + Math.floor(Math.random() * 1000)), 
+                        tipe: "KELUAR", 
+                        kategori: "Pengeluaran", 
+                        jenisKas, 
+                        nominal, 
+                        keterangan, 
+                        tanggal, 
+                        bukti: sharpBase64, 
+                        fileName: fileInput.files[0] ? fileInput.files[0].name : "nota.jpg" 
+                    };
                     dataTransaksi.push(newTrx);
                     dataTransaksi = bersihkanDataTransaksi(dataTransaksi);
-                    simpanLocalState(); tutupModalKeluar(); updateDashboardView(); renderRiwayatTransaksi();
+                    simpanLocalState(); 
+                    
+                    // Reset form pengeluaran
+                    document.getElementById('out-nominal').value = "";
+                    document.getElementById('out-ket').value = "";
+                    fileInput.value = "";
+                    
+                    tutupModalKeluar(); 
+                    updateDashboardView(); 
+                    renderRiwayatTransaksi();
                     
                     syncTransaksiKeCloudClean();
 
-                    alert("Pengeluaran berhasil dicatat!");
+                    alert("✅ Pengeluaran dan bukti nota berhasil dicatat!");
                 };
             };
             reader.readAsDataURL(fileInput.files[0]);
@@ -1959,8 +2009,8 @@
                 let tanda = t.tipe === "MASUK" ? "+" : "-";
                 let nominalBersih = Number(t.nominal) || 0;
                 
-                let safeUrl = (t.bukti && t.bukti !== "-") ? t.bukti : "";
-                let buktiBtn = safeUrl ? `<button onclick="bukaLightbox('${safeUrl}')" class="bg-indigo-50 text-indigo-600 font-bold px-2 py-0.5 rounded shadow-sm hover:bg-indigo-100 transition">Lihat</button>` : `-`;
+                let hasBukti = t.bukti && t.bukti !== "-" && t.bukti !== "";
+                let buktiBtn = hasBukti ? `<button onclick="bukaLightboxTrx('${t.id}')" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-3 py-1 rounded-lg shadow-sm transition text-xs flex items-center gap-1 mx-auto"><span>👁️ Lihat</span></button>` : `<span class="text-slate-300 text-xs font-semibold">-</span>`;
 
                 let checkboxTd = isAdminLoggedIn ? `<td class="py-2.5 px-3 text-center"><input type="checkbox" class="trx-checkbox w-4 h-4 accent-red-600 cursor-pointer" data-id="${t.id}" onchange="updateSelectedCount()"></td>` : '';
                 let actionTd = isAdminLoggedIn ? `<td class="py-2.5 px-3 text-center"><button onclick="hapusTransaksi('${t.id}')" class="text-red-500 font-bold bg-red-50 hover:bg-red-100 px-2 py-0.5 rounded transition">Hapus</button></td>` : '';
@@ -2349,5 +2399,39 @@
             doc.save(namaFile); tutupModalPdf();
         }
     </script>
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a28df0da7cf4aa09',t:'MTc4NjM1Mzc5Ng=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+
+    <!-- MODAL PREVIEW BUKTI NOTA / LIGHTBOX (POPUP GAMBAR BUKTI PENGELUARAN) -->
+    <div id="modal-lightbox-nota" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4">
+        <div class="modal-overlay absolute inset-0 bg-slate-950/80 backdrop-blur-sm opacity-0 transition-opacity duration-300" onclick="tutupLightboxTrx()"></div>
+        <div class="modal-content relative bg-white w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden opacity-0 translate-y-4 transition-all duration-300 flex flex-col max-h-[92vh] text-xs">
+            <div class="bg-slate-900 text-white p-4 flex justify-between items-center">
+                <div class="flex items-center gap-2">
+                    <span class="text-lg">🧾</span>
+                    <div>
+                        <h3 id="lightbox-judul" class="font-bold text-sm text-white">Bukti Nota Pengeluaran</h3>
+                        <p id="lightbox-subjudul" class="text-[11px] text-slate-400">-</p>
+                    </div>
+                </div>
+                <button onclick="tutupLightboxTrx()" class="text-slate-300 hover:text-white text-2xl font-bold leading-none p-1 transition">&times;</button>
+            </div>
+            <div class="p-4 overflow-y-auto custom-scroll flex flex-col items-center justify-center bg-slate-100 min-h-[280px]">
+                <img id="lightbox-img" src="" alt="Bukti Nota Pengeluaran" class="max-h-[60vh] w-auto max-w-full object-contain rounded-xl shadow-md border border-slate-200 bg-white">
+            </div>
+            <div class="p-3.5 bg-white border-t border-slate-200 flex flex-wrap items-center justify-between gap-3">
+                <div id="lightbox-info" class="text-slate-700 font-semibold text-[11px]">
+                    -
+                </div>
+                <div class="flex items-center gap-2">
+                    <a id="lightbox-download-btn" href="#" download="bukti-nota.jpg" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-3.5 py-2 rounded-xl transition shadow-sm flex items-center gap-1.5 text-xs">
+                        <span>⬇️ Unduh Nota</span>
+                    </a>
+                    <button onclick="tutupLightboxTrx()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold px-3.5 py-2 rounded-xl transition text-xs">
+                        Tutup
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a28e05634d47b5c4',t:'MTc4NjM1NDYzNw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
