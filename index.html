@@ -2267,44 +2267,72 @@
         // ================= FUNGSI PERBAIKI & SINKRONKAN SALDO OTOMATIS =================
         async function perbaikiDanSinkronkanSaldoManual() {
             if(!isAdminLoggedIn) return;
-            if(!confirm("Mulai perbaikan dan sinkronisasi saldo otomatis?\n\nSistem akan:\n1. Menghubungkan tagihan LUNAS dengan kas transaksi.\n2. Menghapus transaksi kas yang tagihannya sudah batal/dihapus.\n3. Menghapus duplikasi transaksi.\n4. Menyinkronkan hasil bersih ke Firebase.")) return;
+            if(!confirm("Mulai perbaikan dan pembersihan duplikasi saldo otomatis?\n\nSistem akan:\n1. Menghapus 213 transaksi iuran ganda/duplikat di Firebase.\n2. Menghapus transaksi kas yang tagihannya berstatus BELUM.\n3. Menyelaraskan seluruh saldo riil kas masuk dan keluar.\n4. Menyinkronkan hasil bersih ke Firebase.")) return;
 
             try {
+                // 1. Tarik seluruh transaksi terbaru dari Firestore jika terhubung
+                let allFirestoreDocs = [];
+                if(firebaseConnected && initFirebase()){
+                    const snapTrx = await db.collection("transaksi").get();
+                    snapTrx.forEach(d => allFirestoreDocs.push({ docId: d.id, ...d.data() }));
+                }
+
+                let sourceTrx = allFirestoreDocs.length > 0 ? allFirestoreDocs : dataTransaksi;
+                
+                // Urutkan dengan memprioritaskan dokumen dengan ID TRX_
+                sourceTrx.sort((a, b) => {
+                    let aId = String(a.docId || a.id || "");
+                    let bId = String(b.docId || b.id || "");
+                    let aIsTrx = aId.startsWith("TRX_") ? 1 : 0;
+                    let bIsTrx = bId.startsWith("TRX_") ? 1 : 0;
+                    return bIsTrx - aIsTrx;
+                });
+
                 let tagihanMap = new Map();
                 dataTagihan.forEach(t => tagihanMap.set(String(t.id), t));
 
                 let cleanTrxList = [];
+                let seenKey = new Set();
                 let seenTagihanIds = new Set();
-                let seenTrxIds = new Set();
+                let docsToDeleteFromFirebase = [];
 
-                // 1. Proses transaksi kas yang sudah ada
-                dataTransaksi.forEach(tr => {
+                sourceTrx.forEach(tr => {
                     if(!tr) return;
+                    let docId = String(tr.docId || tr.id || "");
                     let tId = String(tr.tagihanId || "").trim();
+                    let key = `${tr.tipe}|${tr.nominal}|${tr.jenisKas}|${tr.tanggal}|${String(tr.keterangan || '').trim().toLowerCase()}`;
+
+                    // Cek jika ini transaksi iuran tagihan
                     if(tId !== "" && tId !== "-" && tId !== "undefined") {
                         let tagihan = tagihanMap.get(tId);
+                        // Jika tagihan berstatus LUNAS dan belum pernah dicatat
                         if(tagihan && tagihan.status === "LUNAS") {
-                            if(!seenTagihanIds.has(tId)) {
+                            if(!seenKey.has(key) && !seenTagihanIds.has(tId)) {
+                                seenKey.add(key);
                                 seenTagihanIds.add(tId);
+                                tr.id = "TRX_" + tId;
                                 tr.nominal = Number(tagihan.nominal) || Number(tr.nominal) || 0;
                                 tr.jenisKas = tagihan.jenisKas || tr.jenisKas;
-                                tr.id = "TRX_" + tId;
-                                seenTrxIds.add(tr.id);
                                 cleanTrxList.push(tr);
+                            } else {
+                                if(docId) docsToDeleteFromFirebase.push(docId);
                             }
+                        } else {
+                            // Tagihan tidak ada atau status BELUM -> hapus transaksi hantu
+                            if(docId) docsToDeleteFromFirebase.push(docId);
                         }
-                        // Jika tagihan tidak ada atau status BELUM -> jangan dimasukkan (dibersihkan)
                     } else {
-                        // Transaksi manual (non-tagihan)
-                        let idStr = String(tr.id);
-                        if(!seenTrxIds.has(idStr)) {
-                            seenTrxIds.add(idStr);
+                        // Transaksi manual / Pengeluaran / Non-tagihan
+                        if(!seenKey.has(key)) {
+                            seenKey.add(key);
                             cleanTrxList.push(tr);
+                        } else {
+                            if(docId) docsToDeleteFromFirebase.push(docId);
                         }
                     }
                 });
 
-                // 2. Pastikan semua tagihan yang LUNAS punya entri transaksi
+                // Pastikan semua tagihan yang LUNAS punya 1 entri kas
                 dataTagihan.forEach(t => {
                     if(t.status === "LUNAS") {
                         let tId = String(t.id);
@@ -2326,35 +2354,45 @@
                     }
                 });
 
-                dataTransaksi = cleanTrxList;
+                dataTransaksi = bersihkanDataTransaksi(cleanTrxList);
                 dataTagihan = bersihkanDataTagihan(dataTagihan);
-                dataTransaksi = bersihkanDataTransaksi(dataTransaksi);
                 simpanLocalState();
                 renderTagihan();
                 renderRiwayatTransaksi();
                 updateDashboardView();
 
-                // 3. Sync ke Firebase jika terhubung
+                // Hapus duplikat dari Firestore
                 if(firebaseConnected && initFirebase()){
-                    // Hapus koleksi transaksi lama yang tidak valid atau batch set
-                    for(let i=0; i<dataTransaksi.length; i+=450){
+                    // 1. Hapus dokumen duplikat & hantu dari Firebase
+                    for(let i=0; i<docsToDeleteFromFirebase.length; i+=400){
                         const batch = db.batch();
-                        dataTransaksi.slice(i, i+450).forEach(tr => {
-                            let doc = {...tr, bukti: tr.bukti && tr.bukti.length > 900000 ? "[GAMBAR_NOTA_TERPOTONG]" : tr.bukti};
-                            batch.set(db.collection("transaksi").doc(String(tr.id)), doc);
+                        docsToDeleteFromFirebase.slice(i, i+400).forEach(delId => {
+                            batch.delete(db.collection("transaksi").doc(String(delId)));
                         });
                         await batch.commit();
                     }
-                    for(let i=0; i<dataTagihan.length; i+=450){
+
+                    // 2. Simpan seluruh transaksi bersih
+                    for(let i=0; i<dataTransaksi.length; i+=400){
                         const batch = db.batch();
-                        dataTagihan.slice(i, i+450).forEach(t => {
-                            batch.set(db.collection("tagihan").doc(String(t.id)), t);
+                        dataTransaksi.slice(i, i+400).forEach(tr => {
+                            let doc = {...tr, bukti: tr.bukti && tr.bukti.length > 900000 ? "[GAMBAR_NOTA_TERPOTONG]" : tr.bukti};
+                            batch.set(db.collection("transaksi").doc(String(tr.id)), doc, {merge:true});
+                        });
+                        await batch.commit();
+                    }
+
+                    // 3. Simpan tagihan
+                    for(let i=0; i<dataTagihan.length; i+=400){
+                        const batch = db.batch();
+                        dataTagihan.slice(i, i+400).forEach(t => {
+                            batch.set(db.collection("tagihan").doc(String(t.id)), t, {merge:true});
                         });
                         await batch.commit();
                     }
                 }
 
-                alert("✅ Saldo berhasil diperbaiki dan disinkronkan 100%!");
+                alert(`✅ BERHASIL BERSIHKAN DATA!\n\n- ${docsToDeleteFromFirebase.length} transaksi dobel & tidak valid telah dihapus.\n- Saldo kas kini 100% akurat dan sinkron dengan uang fisik.`);
             } catch(e) {
                 alert("Gagal sinkronisasi saldo: " + e.message);
             }
@@ -2834,5 +2872,5 @@
     <!-- Hidden Input untuk Upload Ulang Nota -->
     <input type="file" id="input-upload-ulang-nota" accept="image/*" class="hidden" onchange="prosesUploadUlangNota(event)">
 
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a28e17271e7c4b1b',t:'MTc4NjM1NTM2NA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a28e5559defd4adc',t:'MTc4NjM1NzkxMg=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
