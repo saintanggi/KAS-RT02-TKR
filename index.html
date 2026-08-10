@@ -248,6 +248,15 @@
                         </div>
                     </button>
 
+                    
+                    <button onclick="perbaikiDanSinkronkanSaldoManual()" class="w-full flex items-center gap-3 bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-700 hover:to-red-700 text-white p-3 rounded-xl shadow-md transition text-left">
+                        <div class="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center text-white text-sm">⚡</div>
+                        <div>
+                            <h4 class="font-bold text-xs text-white">Perbaiki & Sinkronkan Saldo</h4>
+                            <p class="text-[10px] text-rose-100">Otomatis Perbaiki Selisih Saldo</p>
+                        </div>
+                    </button>
+
                     <button onclick="sinkronkanSemuaTransaksiKeGsheet()" class="w-full flex items-center gap-3 bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white p-3 rounded-xl shadow-md transition text-left">
                         <div class="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center text-white text-sm">☁️</div>
                         <div>
@@ -917,7 +926,7 @@
         let dataTagihan = bersihkanDataTagihan(rawTagihan);
         let dataTransaksi = bersihkanDataTransaksi(rawTransaksi);
 
-        let kasAktifFilter = isAdminLoggedIn ? "SEMUA" : (jenisKasList[0] || "Kas Bulanan");
+        let kasAktifFilter = "SEMUA"; // Default SEMUA untuk semua user agar saldo konsisten
         let halamanAktifTagihan = 1;
         let halamanAktifWarga = 1;
         let halamanAktifTransaksi = 1;
@@ -1166,7 +1175,7 @@
         };
         const tutupModalEditNominalTagihan = () => toggleModal('modal-edit-nominal', 'close');
 
-        function simpanPerubahanNominalTagihan() {
+        async function simpanPerubahanNominalTagihan() {
             if(!isAdminLoggedIn) return;
             const id = document.getElementById('edit-tagihan-id').value;
             const nominalBaru = parseInt(document.getElementById('edit-tagihan-nominal-input').value) || 0;
@@ -1175,12 +1184,30 @@
             if(!tagihan) return alert("Data tagihan tidak ditemukan!");
 
             tagihan.nominal = nominalBaru;
+            let updatedTrx = null;
             if(tagihan.status === "LUNAS") {
-                let trx = dataTransaksi.find(tr => String(tr.tagihanId) === String(tagihan.id));
-                if(trx) { trx.nominal = nominalBaru; }
+                let trx = dataTransaksi.find(tr => String(tr.tagihanId) === String(tagihan.id) || String(tr.id) === "TRX_" + tagihan.id);
+                if(trx) { 
+                    trx.nominal = nominalBaru; 
+                    trx.jenisKas = tagihan.jenisKas;
+                    updatedTrx = trx;
+                }
             }
-            simpanLocalState(); tutupModalEditNominalTagihan();
-            renderTagihan(); renderRiwayatTransaksi(); updateDashboardView();
+            simpanLocalState(); 
+            tutupModalEditNominalTagihan();
+            renderTagihan(); 
+            renderRiwayatTransaksi(); 
+            updateDashboardView();
+
+            if(firebaseConnected){
+                try {
+                    await db.collection("tagihan").doc(String(tagihan.id)).set(tagihan, {merge:true});
+                    if(updatedTrx) {
+                        await db.collection("transaksi").doc(String(updatedTrx.id)).set(updatedTrx, {merge:true});
+                    }
+                } catch(e) { console.error("Firebase update nominal error:", e); }
+            }
+
             alert("Nominal tagihan diperbarui!");
         }
 
@@ -1232,7 +1259,7 @@
             let currentVal = menuSelect ? menuSelect.value : kasAktifFilter;
             if(menuSelect) {
                 menuSelect.innerHTML = '';
-                if (isAdminLoggedIn) menuSelect.innerHTML += `<option value="SEMUA">📂 Tampilkan Semua Kas</option>`;
+                menuSelect.innerHTML += `<option value="SEMUA">📂 Tampilkan Semua Kas (Total)</option>`;
                 jenisKasList.forEach(k => { menuSelect.innerHTML += `<option value="${k}">${k}</option>`; });
             }
             if(selectWarga) selectWarga.innerHTML = ''; 
@@ -1245,15 +1272,15 @@
                 if(selectOut) selectOut.innerHTML += `<option value="${k}">${k}</option>`;
             });
 
-            if (!isAdminLoggedIn && (currentVal === "SEMUA" || !jenisKasList.includes(currentVal))) {
-                currentVal = jenisKasList[0] || "Kas Bulanan";
+            if (currentVal !== "SEMUA" && !jenisKasList.includes(currentVal)) {
+                currentVal = "SEMUA";
                 kasAktifFilter = currentVal;
             }
             if(menuSelect) menuSelect.value = currentVal;
         }
 
         function gantiFilterKas(nilai) {
-            if (!isAdminLoggedIn && nilai === "SEMUA") { nilai = jenisKasList[0] || "Kas Bulanan"; }
+            // Izinkan publik dan admin melihat SEMUA
             kasAktifFilter = nilai; halamanAktifTagihan = 1; halamanAktifTransaksi = 1;
             const judul = document.getElementById('judul-kas-aktif');
             if(judul) judul.innerText = nilai === "SEMUA" ? "Semua Jenis Kas" : nilai;
@@ -1530,13 +1557,28 @@
 
         async function hapusTagihan(id) {
             if(!isAdminLoggedIn) return;
-            if(confirm("Yakin ingin menghapus tagihan iuran ini?")) {
+            if(confirm("Yakin ingin menghapus tagihan iuran ini? Transaksi kas terkait juga akan dihapus.")) {
+                let targetTagihan = dataTagihan.find(t => String(t.id) === String(id));
+                let trxLamaList = dataTransaksi.filter(tr => String(tr.tagihanId) === String(id) || String(tr.id) === "TRX_" + id);
+
                 dataTagihan = dataTagihan.filter(t => String(t.id) !== String(id));
+                dataTransaksi = dataTransaksi.filter(tr => String(tr.tagihanId) !== String(id) && String(tr.id) !== "TRX_" + id);
+                
                 dataTagihan = bersihkanDataTagihan(dataTagihan);
+                dataTransaksi = bersihkanDataTransaksi(dataTransaksi);
                 simpanLocalState();
                 renderTagihan();
+                renderRiwayatTransaksi();
+                updateDashboardView();
+
                 if(firebaseConnected){
-                    try{ await db.collection("tagihan").doc(String(id)).delete(); }catch(e){ console.log(e); }
+                    try{ 
+                        await db.collection("tagihan").doc(String(id)).delete(); 
+                        for(let oldTr of trxLamaList){
+                            await db.collection("transaksi").doc(String(oldTr.id)).delete();
+                        }
+                        await db.collection("transaksi").doc("TRX_" + id).delete();
+                    }catch(e){ console.error(e); }
                 }
             }
         }
@@ -1642,30 +1684,54 @@
             targetTagihan.status = statusBaru;
 
             tulisLog(statusBaru==="LUNAS"?"BAYAR_LUNAS":"BATAL_BAYAR", `${targetTagihan.nama} Blok ${targetTagihan.blok} - ${targetTagihan.periode} ${targetTagihan.jenisKas} Rp ${targetTagihan.nominal}`);
+            
+            let trxObjId = "TRX_" + targetTagihan.id;
+            let trxLamaList = dataTransaksi.filter(tr => String(tr.tagihanId) === String(targetTagihan.id) || String(tr.id) === trxObjId);
+            
             if(statusBaru === 'LUNAS') {
                 let trxObj = {
-                    id: String(Date.now() + Math.floor(Math.random() * 1000)), 
-                    tagihanId: String(targetTagihan.id), tipe: "MASUK", kategori: "Iuran Warga",
-                    jenisKas: targetTagihan.jenisKas, nominal: targetTagihan.nominal,
+                    id: trxObjId, 
+                    tagihanId: String(targetTagihan.id), 
+                    tipe: "MASUK", 
+                    kategori: "Iuran Warga",
+                    jenisKas: targetTagihan.jenisKas, 
+                    nominal: Number(targetTagihan.nominal) || 0,
                     keterangan: `Iuran ${targetTagihan.nama} (Blok ${targetTagihan.blok}) - ${targetTagihan.periode} - ${targetTagihan.jenisKas}`,
-                    tanggal: new Date().toISOString().split('T')[0], bukti: "-"
+                    tanggal: new Date().toISOString().split('T')[0], 
+                    bukti: "-"
                 };
-                dataTransaksi = dataTransaksi.filter(tr => String(tr.tagihanId) !== String(targetTagihan.id));
+                // Hapus entri lama jika ada lalu masukkan yang baru
+                dataTransaksi = dataTransaksi.filter(tr => String(tr.tagihanId) !== String(targetTagihan.id) && String(tr.id) !== trxObjId);
                 dataTransaksi.push(trxObj);
+
+                if(firebaseConnected){
+                    try{
+                        await db.collection("tagihan").doc(String(targetTagihan.id)).set(targetTagihan, {merge:true});
+                        await db.collection("transaksi").doc(String(trxObj.id)).set(trxObj, {merge:true});
+                    }catch(e){ console.error("Firebase sync error:", e); }
+                }
             } else {
-                dataTransaksi = dataTransaksi.filter(tr => String(tr.tagihanId) !== String(targetTagihan.id));
+                // Status BATAL / BELUM: Hapus dari transaksi lokal dan Firestore
+                dataTransaksi = dataTransaksi.filter(tr => String(tr.tagihanId) !== String(targetTagihan.id) && String(tr.id) !== trxObjId);
+                
+                if(firebaseConnected){
+                    try{
+                        await db.collection("tagihan").doc(String(targetTagihan.id)).set(targetTagihan, {merge:true});
+                        // Hapus dokumen transaksi dari Firestore
+                        for(let oldTrx of trxLamaList){
+                            await db.collection("transaksi").doc(String(oldTrx.id)).delete();
+                        }
+                        await db.collection("transaksi").doc(trxObjId).delete();
+                    }catch(e){ console.error("Firebase delete error:", e); }
+                }
             }
+
             dataTagihan = bersihkanDataTagihan(dataTagihan);
             dataTransaksi = bersihkanDataTransaksi(dataTransaksi);
-            simpanLocalState(); renderTagihan(); renderRiwayatTransaksi(); updateDashboardView();
-
-            if(firebaseConnected){
-                try{
-                    await db.collection("tagihan").doc(String(targetTagihan.id)).set(targetTagihan, {merge:true});
-                    // transaksi juga sudah di syncTransaksiKeCloudClean
-                }catch(e){ console.log(e); }
-            }
-            syncTransaksiKeCloudClean();
+            simpanLocalState(); 
+            renderTagihan(); 
+            renderRiwayatTransaksi(); 
+            updateDashboardView();
         }
 
         function simpanPemasukanManual() {
@@ -1868,6 +1934,103 @@
                 }
 
                 alert("Transaksi berhasil dihapus permanen!");
+            }
+        }
+
+        
+        // ================= FUNGSI PERBAIKI & SINKRONKAN SALDO OTOMATIS =================
+        async function perbaikiDanSinkronkanSaldoManual() {
+            if(!isAdminLoggedIn) return;
+            if(!confirm("Mulai perbaikan dan sinkronisasi saldo otomatis?\n\nSistem akan:\n1. Menghubungkan tagihan LUNAS dengan kas transaksi.\n2. Menghapus transaksi kas yang tagihannya sudah batal/dihapus.\n3. Menghapus duplikasi transaksi.\n4. Menyinkronkan hasil bersih ke Firebase.")) return;
+
+            try {
+                let tagihanMap = new Map();
+                dataTagihan.forEach(t => tagihanMap.set(String(t.id), t));
+
+                let cleanTrxList = [];
+                let seenTagihanIds = new Set();
+                let seenTrxIds = new Set();
+
+                // 1. Proses transaksi kas yang sudah ada
+                dataTransaksi.forEach(tr => {
+                    if(!tr) return;
+                    let tId = String(tr.tagihanId || "").trim();
+                    if(tId !== "" && tId !== "-" && tId !== "undefined") {
+                        let tagihan = tagihanMap.get(tId);
+                        if(tagihan && tagihan.status === "LUNAS") {
+                            if(!seenTagihanIds.has(tId)) {
+                                seenTagihanIds.add(tId);
+                                tr.nominal = Number(tagihan.nominal) || Number(tr.nominal) || 0;
+                                tr.jenisKas = tagihan.jenisKas || tr.jenisKas;
+                                tr.id = "TRX_" + tId;
+                                seenTrxIds.add(tr.id);
+                                cleanTrxList.push(tr);
+                            }
+                        }
+                        // Jika tagihan tidak ada atau status BELUM -> jangan dimasukkan (dibersihkan)
+                    } else {
+                        // Transaksi manual (non-tagihan)
+                        let idStr = String(tr.id);
+                        if(!seenTrxIds.has(idStr)) {
+                            seenTrxIds.add(idStr);
+                            cleanTrxList.push(tr);
+                        }
+                    }
+                });
+
+                // 2. Pastikan semua tagihan yang LUNAS punya entri transaksi
+                dataTagihan.forEach(t => {
+                    if(t.status === "LUNAS") {
+                        let tId = String(t.id);
+                        if(!seenTagihanIds.has(tId)) {
+                            let trxObj = {
+                                id: "TRX_" + tId,
+                                tagihanId: tId,
+                                tipe: "MASUK",
+                                kategori: "Iuran Warga",
+                                jenisKas: t.jenisKas || "Kas Bulanan",
+                                nominal: Number(t.nominal) || 0,
+                                keterangan: `Iuran ${t.nama} (Blok ${t.blok}) - ${t.periode} - ${t.jenisKas}`,
+                                tanggal: new Date().toISOString().split('T')[0],
+                                bukti: "-"
+                            };
+                            seenTagihanIds.add(tId);
+                            cleanTrxList.push(trxObj);
+                        }
+                    }
+                });
+
+                dataTransaksi = cleanTrxList;
+                dataTagihan = bersihkanDataTagihan(dataTagihan);
+                dataTransaksi = bersihkanDataTransaksi(dataTransaksi);
+                simpanLocalState();
+                renderTagihan();
+                renderRiwayatTransaksi();
+                updateDashboardView();
+
+                // 3. Sync ke Firebase jika terhubung
+                if(firebaseConnected && initFirebase()){
+                    // Hapus koleksi transaksi lama yang tidak valid atau batch set
+                    for(let i=0; i<dataTransaksi.length; i+=450){
+                        const batch = db.batch();
+                        dataTransaksi.slice(i, i+450).forEach(tr => {
+                            let doc = {...tr, bukti: tr.bukti && tr.bukti.length > 900000 ? "[GAMBAR_NOTA_TERPOTONG]" : tr.bukti};
+                            batch.set(db.collection("transaksi").doc(String(tr.id)), doc);
+                        });
+                        await batch.commit();
+                    }
+                    for(let i=0; i<dataTagihan.length; i+=450){
+                        const batch = db.batch();
+                        dataTagihan.slice(i, i+450).forEach(t => {
+                            batch.set(db.collection("tagihan").doc(String(t.id)), t);
+                        });
+                        await batch.commit();
+                    }
+                }
+
+                alert("✅ Saldo berhasil diperbaiki dan disinkronkan 100%!");
+            } catch(e) {
+                alert("Gagal sinkronisasi saldo: " + e.message);
             }
         }
 
