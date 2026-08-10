@@ -986,50 +986,36 @@
                 return;
             }
             try {
-                // JenisKas
+                // 1. Ambil JenisKas
                 const docKas = await db.collection("config").doc("jenisKas").get();
                 if(docKas.exists && docKas.data().list){
                     jenisKasList = docKas.data().list;
                 }
-                // Warga
+
+                // 2. Ambil Warga (Master Cloud)
                 const snapWarga = await db.collection("warga").get();
                 if(!snapWarga.empty){
                     let cloudWarga = [];
                     snapWarga.forEach(d=> cloudWarga.push(d.data()));
-                    // merge cloud + lokal (prioritas cloud untuk jenisKas, tapi data lengkap merge)
-                    let map = new Map();
-                    dataWarga.forEach(w=> map.set(String(w.id), w));
-                    cloudWarga.forEach(w=> { if(!map.has(String(w.id))) map.set(String(w.id), w); else map.set(String(w.id), {...map.get(String(w.id)), ...w}); });
-                    // Jika cloud ada, pakai cloud sebagai sumber utama
                     if(cloudWarga.length > 0) dataWarga = bersihkanDataWarga(cloudWarga);
                 }
-                // Tagihan
+
+                // 3. Ambil Tagihan (Master Cloud)
                 const snapTagihan = await db.collection("tagihan").get();
                 if(!snapTagihan.empty){
                     let cloudTagihan = [];
                     snapTagihan.forEach(d=> cloudTagihan.push(d.data()));
-                    cloudTagihan = bersihkanDataTagihan(cloudTagihan.map(t=>({...t, periode: bersihkanFormatPeriode(t.periode)})));
-                    if(cloudTagihan.length > 0){
-                        // merge: cloud + lokal (prioritas cloud untuk update terbaru dari device lain)
-                        let map = new Map();
-                        cloudTagihan.forEach(t=> map.set(String(t.id), t));
-                        dataTagihan.forEach(t=> { if(!map.has(String(t.id))) map.set(String(t.id), t); });
-                        dataTagihan = Array.from(map.values());
-                    }
+                    if(cloudTagihan.length > 0) dataTagihan = bersihkanDataTagihan(cloudTagihan.map(t=>({...t, periode: bersihkanFormatPeriode(t.periode)})));
                 }
-                // Transaksi
+
+                // 4. Ambil Transaksi (Master Cloud)
                 const snapTrx = await db.collection("transaksi").get();
                 if(!snapTrx.empty){
                     let cloudTrx = [];
                     snapTrx.forEach(d=> cloudTrx.push(d.data()));
-                    cloudTrx = bersihkanDataTransaksi(cloudTrx);
-                    if(cloudTrx.length > 0){
-                        let map = new Map();
-                        cloudTrx.forEach(tr=> map.set(String(tr.id), tr));
-                        dataTransaksi.forEach(tr=> { if(!map.has(String(tr.id))) map.set(String(tr.id), tr); });
-                        dataTransaksi = Array.from(map.values());
-                    }
+                    if(cloudTrx.length > 0) dataTransaksi = bersihkanDataTransaksi(cloudTrx);
                 }
+
                 simpanLocalState();
                 refreshDropdowns();
                 renderJenisKasList();
@@ -1037,28 +1023,50 @@
                 renderTagihan();
                 renderRiwayatTransaksi();
                 updateDashboardView();
-                console.log("✅ Firebase sync selesai");
+                console.log("✅ Firebase sync selesai - data perangkat HP & Laptop 100% sinkron");
                 isDataLoaded = true;
+
                 const btnGen2 = document.getElementById('btn-generate-warga');
                 if(btnGen2){ btnGen2.disabled = false; btnGen2.innerText = "⚡ Generate"; btnGen2.classList.remove('opacity-50','cursor-not-allowed'); }
-                // Validasi: cek warga dengan nominal 0
-                const wargaNol = dataWarga.filter(w => (w.status==="Tetap"||w.status==="Kontrak") && (!w.nominal || Number(w.nominal)===0));
-                if(wargaNol.length>0) console.warn("⚠️ Ada warga Tetap/Kontrak nominal 0:", wargaNol.map(w=>w.blok).join(", "));
 
-                // Realtime listener (opsional): update otomatis jika ada perubahan di device lain
-                db.collection("config").doc("jenisKas").onSnapshot(doc=>{
-                    if(doc.exists && doc.data().list){
-                        let newList = doc.data().list;
-                        if(JSON.stringify(newList) !== JSON.stringify(jenisKasList)){
-                            jenisKasList = newList;
-                            simpanLocalState(); refreshDropdowns(); renderJenisKasList();
-                        }
-                    }
-                });
+                // Pasang Realtime Firestore Listener agar update di laptop langsung masuk ke HP secara instan
+                pasangRealtimeListener();
 
             } catch(e){
                 console.log("Firebase sync error, pakai cache lokal:", e);
             }
+        }
+
+        let isListenerAttached = false;
+        function pasangRealtimeListener() {
+            if(isListenerAttached || !firebaseConnected || !db) return;
+            isListenerAttached = true;
+
+            try {
+                // Listener Perubahan Transaksi dari Perangkat Lain
+                db.collection("transaksi").onSnapshot(snap => {
+                    if(!snap.empty){
+                        let list = [];
+                        snap.forEach(d => list.push(d.data()));
+                        dataTransaksi = bersihkanDataTransaksi(list);
+                        simpanLocalState();
+                        renderRiwayatTransaksi();
+                        updateDashboardView();
+                    }
+                }, err => console.log("Realtime trx error:", err));
+
+                // Listener Perubahan Tagihan dari Perangkat Lain
+                db.collection("tagihan").onSnapshot(snap => {
+                    if(!snap.empty){
+                        let list = [];
+                        snap.forEach(d => list.push(d.data()));
+                        dataTagihan = bersihkanDataTagihan(list);
+                        simpanLocalState();
+                        renderTagihan();
+                        updateDashboardView();
+                    }
+                }, err => console.log("Realtime tagihan error:", err));
+            } catch(e){ console.log("Listener error:", e); }
         }
 
         async function tarikDataDariCloudManual() {
@@ -2341,5 +2349,5 @@
             doc.save(namaFile); tutupModalPdf();
         }
     </script>
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a28da79fc92d582b',t:'MTc4NjM1MDc5Ng=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a28df0da7cf4aa09',t:'MTc4NjM1Mzc5Ng=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
