@@ -961,14 +961,58 @@
         let rawTagihan = loadSafeStorage('rt_data_tagihan', []);
         let rawTransaksi = loadSafeStorage('rt_data_transaksi', []);
 
+        // ================= SISTEM DETEKSI & SELEKSI BULAN REALTIME OTOMATIS =================
+        const NAMA_BULAN_INDONESIA = [
+            "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+            "Juli", "Agustus", "September", "Oktober", "November", "Desember"
+        ];
+
+        // Mendapatkan format periode bulan ini secara otomatis (contoh: "Agustus 2026", "September 2026", dll)
+        function getPeriodeBulanSekarang() {
+            const now = new Date();
+            const namaBulan = NAMA_BULAN_INDONESIA[now.getMonth()] || "Agustus";
+            const tahun = now.getFullYear() || 2026;
+            return `${namaBulan} ${tahun}`;
+        }
+
+        // Inisialisasi seluruh dropdown bulan di sistem agar otomatis memilih bulan saat ini
+        function inisialisasiDropdownBulan() {
+            const currentPeriode = getPeriodeBulanSekarang();
+            const now = new Date();
+            const currentYear = now.getFullYear() || 2026;
+
+            let optionsHtml = '';
+            NAMA_BULAN_INDONESIA.forEach(bulan => {
+                let p = `${bulan} ${currentYear}`;
+                let selected = (p === currentPeriode) ? 'selected' : '';
+                optionsHtml += `<option value="${p}" ${selected}>${p}</option>`;
+            });
+
+            const elFilterBulan = document.getElementById('pilih-bulan-filter');
+            const elGenPeriode = document.getElementById('gen-periode');
+            const elPdfBulan = document.getElementById('pdf-periode-bulan');
+
+            if (elFilterBulan) {
+                elFilterBulan.innerHTML = optionsHtml;
+                elFilterBulan.value = currentPeriode;
+            }
+            if (elGenPeriode) {
+                elGenPeriode.innerHTML = optionsHtml;
+                elGenPeriode.value = currentPeriode;
+            }
+            if (elPdfBulan) {
+                elPdfBulan.innerHTML = optionsHtml;
+                elPdfBulan.value = currentPeriode;
+            }
+        }
+
         function bersihkanFormatPeriode(val) {
-            if(!val) return "Agustus 2026";
-            let str = String(val);
+            if(!val) return getPeriodeBulanSekarang();
+            let str = String(val).trim();
             if (str.indexOf("T") > -1 && str.indexOf("Z") > -1) {
                 let d = new Date(str);
                 if (!isNaN(d.getTime())) {
-                    let months = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
-                    return months[d.getMonth()] + " " + d.getFullYear();
+                    return NAMA_BULAN_INDONESIA[d.getMonth()] + " " + d.getFullYear();
                 }
             }
             return str;
@@ -1196,6 +1240,7 @@
 
         window.onload = function() {
             try {
+                inisialisasiDropdownBulan(); // Otomatis pilih bulan sekarang (September, Oktober, dst.)
                 dataWarga = bersihkanDataWarga(dataWarga);
                 dataTagihan = bersihkanDataTagihan(dataTagihan);
                 dataTransaksi = bersihkanDataTransaksi(dataTransaksi);
@@ -1963,7 +2008,7 @@
             if(!isAdminLoggedIn) return;
             const elPeriode = document.getElementById('pilih-bulan-filter');
             const elGenPeriode = document.getElementById('gen-periode');
-            if(elPeriode && elGenPeriode) elGenPeriode.value = elPeriode.value;
+            if(elPeriode && elGenPeriode) elGenPeriode.value = elPeriode.value || getPeriodeBulanSekarang();
 
             const selectGenKas = document.getElementById('gen-jeniskas');
             if(selectGenKas) {
@@ -4072,5 +4117,5 @@
         </div>
     </div>
 
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a293feda482de783',t:'MTc4NjQxNzI4NA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a294088b2a92e778',t:'MTc4NjQxNzY4MQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
