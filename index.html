@@ -3,6 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <!-- PWA & Mobile Web App Support -->
+    <meta name="theme-color" content="#0b2239">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Kas RT02 TKR">
+    <link rel="apple-touch-icon" href="https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=180&h=180&q=80">
     <title>Dashboard Kas TKR RT.02 - Firebase Cloud</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -14,6 +20,8 @@
     <!-- Firebase SDK (Compat - paling mudah untuk Kas RT) -->
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+    <!-- Chart.js untuk Grafik Keuangan -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <!-- SheetJS untuk Export Excel -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <style>
@@ -64,6 +72,32 @@
                     </div>
                 </div>
 
+                
+                <!-- ================= PAPAN PENGUMUMAN & AGENDA RT ================= -->
+                <div class="bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-amber-500/10 backdrop-blur-md border border-amber-200/80 p-3 rounded-2xl shadow-sm flex flex-col md:flex-row items-center justify-between gap-2.5 text-xs">
+                    <div class="flex items-center gap-2.5 overflow-hidden w-full">
+                        <span class="flex-shrink-0 bg-amber-500 text-white font-extrabold text-[10px] px-2.5 py-1 rounded-lg flex items-center gap-1 shadow-sm">
+                            <span>📢</span> INFO RT
+                        </span>
+                        <div class="overflow-hidden flex-1">
+                            <p id="teks-pengumuman-rt" class="font-bold text-slate-800 truncate text-[11px]">
+                                Pembayaran Iuran RT.002 paling lambat tanggal 10 setiap bulannya via Scan QRIS atau Transfer BSI. Terima kasih!
+                            </p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-1.5 flex-shrink-0 w-full md:w-auto justify-end">
+                        <button onclick="bukaModalRiwayatWargaTahunan()" class="bg-white hover:bg-slate-50 text-blue-700 border border-blue-200 font-bold px-3 py-1.5 rounded-xl text-[11px] transition shadow-sm flex items-center gap-1 cursor-pointer">
+                            <span>🗓️ Cek 1 Tahun</span>
+                        </button>
+                        <button id="btn-edit-pengumuman-admin" onclick="bukaModalEditPengumuman()" class="hidden bg-amber-600 hover:bg-amber-700 text-white font-bold px-2.5 py-1.5 rounded-xl text-[11px] transition shadow-sm items-center gap-1 cursor-pointer">
+                            <span>✏️ Edit Info</span>
+                        </button>
+                        <button id="btn-install-pwa" onclick="installAplikasiPWA()" class="hidden bg-slate-900 hover:bg-black text-white font-bold px-2.5 py-1.5 rounded-xl text-[11px] transition shadow-sm items-center gap-1 cursor-pointer">
+                            <span>📲 Install App</span>
+                        </button>
+                    </div>
+                </div>
+
                 <!-- MENU PILIH JENIS KAS -->
                 <div class="bg-white/90 backdrop-blur-md p-4 rounded-2xl shadow-[0_4px_15px_rgb(0,0,0,0.05)] border border-white/50 flex flex-col md:flex-row items-center justify-between gap-3">
                     <div>
@@ -92,6 +126,36 @@
                     <div class="bg-white/90 backdrop-blur-md p-4 rounded-2xl shadow-[0_4px_15px_rgb(0,0,0,0.05)] border border-white/50">
                         <p class="text-[10px] text-slate-400 font-bold tracking-wider mb-1 uppercase">Total Pengeluaran</p>
                         <h2 id="card-keluar" class="text-2xl font-extrabold text-red-500">Rp 0</h2>
+                    </div>
+                </div>
+
+                
+                <!-- ================= DASHBOARD GRAFIK KEUANGAN (CHART.JS - KHUSUS PENGURUS/ADMIN) ================= -->
+                <div id="section-grafik-keuangan" class="hidden bg-white/90 backdrop-blur-md p-4 sm:p-5 rounded-2xl shadow-[0_4px_15px_rgb(0,0,0,0.05)] border border-white/50 space-y-3">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-slate-100 pb-3">
+                        <div class="flex items-center gap-2">
+                            <div class="w-8 h-8 rounded-xl bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-sm">📊</div>
+                            <div>
+                                <h3 class="font-extrabold text-slate-800 text-sm">Grafik & Statistik Keuangan Kas RT</h3>
+                                <p class="text-[11px] text-slate-500">Visualisasi tren pemasukan, pengeluaran, dan alokasi dana.</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-1 bg-slate-100 p-1 rounded-xl text-[11px] font-bold">
+                            <button id="tab-chart-tren" onclick="gantiTabGrafik('tren')" class="bg-white text-blue-600 shadow-sm px-3 py-1 rounded-lg transition">📈 Tren Bulanan</button>
+                            <button id="tab-chart-alokasi" onclick="gantiTabGrafik('alokasi')" class="text-slate-600 hover:text-slate-900 px-3 py-1 rounded-lg transition">🍩 Alokasi Pengeluaran</button>
+                        </div>
+                    </div>
+
+                    <!-- Area Canvas Grafik -->
+                    <div class="relative w-full h-64 sm:h-72">
+                        <div id="container-chart-tren" class="w-full h-full">
+                            <canvas id="canvasChartTren"></canvas>
+                        </div>
+                        <div id="container-chart-alokasi" class="w-full h-full hidden flex items-center justify-center">
+                            <div class="w-full max-w-xs h-full flex items-center justify-center">
+                                <canvas id="canvasChartAlokasi"></canvas>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -206,8 +270,22 @@
                         </div>
                     </div>
 
-                    <div>
-                        <input type="text" id="cari-transaksi" oninput="setPencarianBersama(this.value)" placeholder="🔍 Ketik Nama, Blok, keterangan, kategori, nominal, tanggal..." class="w-full bg-white border border-slate-200 text-xs px-3.5 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 shadow-sm">
+                    <!-- Filter Cepat Tipe Transaksi: Pemasukan (Default) / Pengeluaran / Semua -->
+                    <div class="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-2.5 pt-1">
+                        <div class="flex items-center gap-1 bg-slate-100 p-1 rounded-xl text-xs">
+                            <button type="button" id="btn-filter-trx-masuk" onclick="gantiFilterTipeTransaksi('MASUK')" class="bg-blue-600 text-white shadow-xs px-3.5 py-1.5 rounded-lg transition flex items-center gap-1.5 cursor-pointer font-bold">
+                                <span>🟢 Pemasukan Saja</span>
+                            </button>
+                            <button type="button" id="btn-filter-trx-keluar" onclick="gantiFilterTipeTransaksi('KELUAR')" class="text-slate-600 hover:text-slate-900 px-3.5 py-1.5 rounded-lg transition flex items-center gap-1.5 cursor-pointer font-semibold">
+                                <span>🔴 Pengeluaran Saja</span>
+                            </button>
+                            <button type="button" id="btn-filter-trx-semua" onclick="gantiFilterTipeTransaksi('SEMUA')" class="text-slate-600 hover:text-slate-900 px-3.5 py-1.5 rounded-lg transition flex items-center gap-1.5 cursor-pointer font-semibold">
+                                <span>📂 Semua</span>
+                            </button>
+                        </div>
+                        <div class="flex-1">
+                            <input type="text" id="cari-transaksi" oninput="setPencarianBersama(this.value)" placeholder="🔍 Cari transaksi (Nama, Blok, tanggal, nominal, dll)..." class="w-full bg-white border border-slate-200 text-xs px-3.5 py-2 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 shadow-sm font-medium">
+                        </div>
                     </div>
 
                     <div class="border border-slate-100 rounded-xl overflow-hidden bg-white">
@@ -257,6 +335,15 @@
                         <div>
                             <h4 class="font-bold text-xs text-white">Tarik Data dari Firebase</h4>
                             <p class="text-[10px] text-amber-100">Realtime dari Firestore</p>
+                        </div>
+                    </button>
+
+                    
+                    <button onclick="bukaModalMultiBulan()" class="w-full flex items-center gap-3 bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700 text-white p-3 rounded-xl shadow-md transition text-left">
+                        <div class="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center text-white text-sm">💳</div>
+                        <div>
+                            <h4 class="font-bold text-xs text-white">Bayar Multi-Bulan Sekaligus</h4>
+                            <p class="text-[10px] text-teal-100">Bayar 3, 6, s/d 12 Bulan Sekali Klik</p>
                         </div>
                     </button>
 
@@ -1131,6 +1218,8 @@
                 renderTagihan(); 
                 renderRiwayatTransaksi(); 
                 updateDashboardView();
+                updateTampilanPengumuman();
+                renderSemuaGrafik();
 
                 autoTarikDataDariCloud();
 
@@ -1174,6 +1263,631 @@
             });
         }
 
+        
+        // ================= FITUR 4: GRAFIK KEUANGAN (CHART.JS) =================
+        let chartTrenInstance = null;
+        let chartAlokasiInstance = null;
+        let tabGrafikAktif = "tren";
+
+        function gantiTabGrafik(tab) {
+            tabGrafikAktif = tab;
+            const tabTrenBtn = document.getElementById('tab-chart-tren');
+            const tabAlokasiBtn = document.getElementById('tab-chart-alokasi');
+            const boxTren = document.getElementById('container-chart-tren');
+            const boxAlokasi = document.getElementById('container-chart-alokasi');
+
+            if (tab === 'tren') {
+                tabTrenBtn.className = "bg-white text-blue-600 shadow-sm px-3 py-1 rounded-lg transition";
+                tabAlokasiBtn.className = "text-slate-600 hover:text-slate-900 px-3 py-1 rounded-lg transition";
+                boxTren.classList.remove('hidden');
+                boxAlokasi.classList.add('hidden');
+            } else {
+                tabAlokasiBtn.className = "bg-white text-blue-600 shadow-sm px-3 py-1 rounded-lg transition";
+                tabTrenBtn.className = "text-slate-600 hover:text-slate-900 px-3 py-1 rounded-lg transition";
+                boxTren.classList.add('hidden');
+                boxAlokasi.classList.remove('hidden');
+            }
+            renderSemuaGrafik();
+        }
+
+        function renderSemuaGrafik() {
+            if (!isAdminLoggedIn || typeof Chart === 'undefined') return;
+
+            const months = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agt", "Sep", "Okt", "Nov", "Des"];
+            let dataMasukPerBulan = new Array(12).fill(0);
+            let dataKeluarPerBulan = new Array(12).fill(0);
+            let kategoriPengeluaranMap = {};
+
+            dataTransaksi.forEach(t => {
+                if (!t) return;
+                let tKas = String(t.jenisKas || "").trim();
+                if (!isAdminLoggedIn && tKas.toLowerCase().includes("subsidi")) return;
+
+                // Match kas aktif jika bukan admin SEMUA
+                let matchKas = (isAdminLoggedIn && kasAktifFilter === "SEMUA") || 
+                               (tKas.toLowerCase() === String(kasAktifFilter).trim().toLowerCase());
+                if (!matchKas) return;
+
+                let nominal = Number(t.nominal) || 0;
+                let d = t.tanggal ? new Date(t.tanggal) : null;
+                let monthIdx = d && !isNaN(d.getMonth()) ? d.getMonth() : 7; // Default Agt (7)
+
+                if (t.tipe === "MASUK") {
+                    dataMasukPerBulan[monthIdx] += nominal;
+                } else if (t.tipe === "KELUAR") {
+                    dataKeluarPerBulan[monthIdx] += nominal;
+                    let kat = t.kategori || "Pengeluaran";
+                    kategoriPengeluaranMap[kat] = (kategoriPengeluaranMap[kat] || 0) + nominal;
+                }
+            });
+
+            // 1. Render Bar Chart Tren
+            const ctxTren = document.getElementById('canvasChartTren');
+            if (ctxTren) {
+                if (chartTrenInstance) chartTrenInstance.destroy();
+                chartTrenInstance = new Chart(ctxTren, {
+                    type: 'bar',
+                    data: {
+                        labels: months,
+                        datasets: [
+                            {
+                                label: 'Pemasukan (Rp)',
+                                data: dataMasukPerBulan,
+                                backgroundColor: 'rgba(37, 99, 235, 0.85)',
+                                borderRadius: 6
+                            },
+                            {
+                                label: 'Pengeluaran (Rp)',
+                                data: dataKeluarPerBulan,
+                                backgroundColor: 'rgba(239, 68, 68, 0.85)',
+                                borderRadius: 6
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { position: 'top', labels: { font: { size: 11, weight: 'bold' } } },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(ctx) {
+                                        return ctx.dataset.label + ': Rp ' + Number(ctx.raw).toLocaleString('id-ID');
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                ticks: {
+                                    callback: function(val) { return 'Rp ' + (val >= 1000000 ? (val/1000000) + ' Jt' : val.toLocaleString('id-ID')); },
+                                    font: { size: 10 }
+                                },
+                                grid: { color: '#f1f5f9' }
+                            },
+                            x: { grid: { display: false }, ticks: { font: { size: 10, weight: 'bold' } } }
+                        }
+                    }
+                });
+            }
+
+            // 2. Render Doughnut Chart Alokasi
+            const ctxAlokasi = document.getElementById('canvasChartAlokasi');
+            if (ctxAlokasi) {
+                if (chartAlokasiInstance) chartAlokasiInstance.destroy();
+                let labelsKat = Object.keys(kategoriPengeluaranMap);
+                let valuesKat = Object.values(kategoriPengeluaranMap);
+                if (labelsKat.length === 0) {
+                    labelsKat = ["Belum ada pengeluaran"];
+                    valuesKat = [1];
+                }
+
+                chartAlokasiInstance = new Chart(ctxAlokasi, {
+                    type: 'doughnut',
+                    data: {
+                        labels: labelsKat,
+                        datasets: [{
+                            data: valuesKat,
+                            backgroundColor: ['#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899']
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 10 } } },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(ctx) {
+                                        let val = ctx.raw;
+                                        return ctx.label + ': Rp ' + Number(val).toLocaleString('id-ID');
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        }
+
+        // ================= FITUR 2: REKAP IURAN 1 TAHUN (MATRIKS 12 BULAN) =================
+        const DAFTAR_BULAN_LENGKAP = [
+            "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+            "Juli", "Agustus", "September", "Oktober", "November", "Desember"
+        ];
+
+        function bukaModalRiwayatWargaTahunan(defaultWargaId) {
+            const selectW = document.getElementById('select-warga-tahunan');
+            const selectK = document.getElementById('select-kas-tahunan');
+            const availableKas = getDaftarKasTersedia();
+
+            if (selectW) {
+                selectW.innerHTML = '';
+                dataWarga.forEach(w => {
+                    selectW.innerHTML += `<option value="${w.id}">Blok ${w.blok} - ${w.nama} (${w.status})</option>`;
+                });
+                if (defaultWargaId) selectW.value = String(defaultWargaId);
+            }
+
+            if (selectK) {
+                selectK.innerHTML = '';
+                availableKas.forEach(k => {
+                    selectK.innerHTML += `<option value="${k}">${k}</option>`;
+                });
+                selectK.value = kasAktifFilter !== "SEMUA" ? kasAktifFilter : availableKas[0];
+            }
+
+            const btnMulti = document.getElementById('btn-bayar-multi-dari-tahunan');
+            if (btnMulti) {
+                if (isAdminLoggedIn) btnMulti.classList.remove('hidden');
+                else btnMulti.classList.add('hidden');
+            }
+
+            renderMatriksTahunanWarga();
+            toggleModal('modal-riwayat-warga-tahunan', 'open');
+        }
+
+        function tutupModalRiwayatWargaTahunan() {
+            toggleModal('modal-riwayat-warga-tahunan', 'close');
+        }
+
+        function renderMatriksTahunanWarga() {
+            const selectW = document.getElementById('select-warga-tahunan');
+            const selectK = document.getElementById('select-kas-tahunan');
+            const wId = selectW ? selectW.value : null;
+            const kName = selectK ? selectK.value : "Kas Bulanan";
+
+            const warga = dataWarga.find(w => String(w.id) === String(wId));
+            const gridEl = document.getElementById('grid-12-bulan-warga');
+            const infoEl = document.getElementById('info-rekap-warga-tahunan');
+            if (!warga || !gridEl) return;
+
+            let isGratis = warga.status === "Pengurus (Gratis)" || warga.status === "Rumah Kosong" || warga.status === "Pindah";
+            let nominalPerBulan = Number(warga.nominal) || 55000;
+            let totalLunas = 0;
+            let totalBelum = 0;
+
+            gridEl.innerHTML = '';
+
+            DAFTAR_BULAN_LENGKAP.forEach((bulan, idx) => {
+                let periodeStr = `${bulan} 2026`;
+                let tagihan = dataTagihan.find(t => {
+                    let matchWarga = String(t.wargaId) === String(warga.id) || (t.nama === warga.nama && t.blok === warga.blok);
+                    let matchKas = String(t.jenisKas || '').trim().toLowerCase() === String(kName).trim().toLowerCase();
+                    let matchPeriode = String(t.periode || '').trim().toLowerCase() === periodeStr.toLowerCase();
+                    return matchWarga && matchKas && matchPeriode;
+                });
+
+                let status = "BELUM";
+                let tglBayar = "-";
+                let nominal = tagihan ? (Number(tagihan.nominal) || nominalPerBulan) : nominalPerBulan;
+
+                if (isGratis) {
+                    status = "GRATIS";
+                } else if (tagihan && tagihan.status === "LUNAS") {
+                    status = "LUNAS";
+                    totalLunas += nominal;
+                    let trx = dataTransaksi.find(tr => String(tr.tagihanId) === String(tagihan.id));
+                    if (trx && trx.tanggal) tglBayar = trx.tanggal;
+                } else {
+                    status = "BELUM";
+                    totalBelum += nominal;
+                }
+
+                let badgeHtml = '';
+                let bgCard = 'bg-white border-slate-200';
+
+                if (status === "LUNAS") {
+                    badgeHtml = `<span class="bg-emerald-100 text-emerald-800 font-extrabold text-[10px] px-2 py-0.5 rounded-full">LUNAS ✅</span>`;
+                    bgCard = 'bg-emerald-50/60 border-emerald-300';
+                } else if (status === "GRATIS") {
+                    badgeHtml = `<span class="bg-slate-100 text-slate-600 font-bold text-[10px] px-2 py-0.5 rounded-full">${warga.status}</span>`;
+                    bgCard = 'bg-slate-50 border-slate-200 opacity-75';
+                } else {
+                    badgeHtml = `<span class="bg-rose-100 text-rose-700 font-extrabold text-[10px] px-2 py-0.5 rounded-full">BELUM ❌</span>`;
+                    bgCard = 'bg-rose-50/50 border-rose-200';
+                }
+
+                gridEl.innerHTML += `
+                    <div class="border ${bgCard} p-3 rounded-2xl flex flex-col justify-between space-y-2 shadow-2xs">
+                        <div class="flex justify-between items-start">
+                            <span class="font-extrabold text-slate-800 text-xs">${bulan}</span>
+                            ${badgeHtml}
+                        </div>
+                        <div class="pt-1 border-t border-slate-200/60 flex justify-between items-center text-[10px]">
+                            <span class="text-slate-500 font-medium">Rp ${nominal.toLocaleString('id-ID')}</span>
+                            ${status === "LUNAS" && tagihan ? `<button onclick="cetakEkwitansiTagihan('${tagihan.id}')" class="text-blue-600 font-bold hover:underline">🧾 Kwitansi</button>` : ''}
+                        </div>
+                    </div>
+                `;
+            });
+
+            if (infoEl) {
+                infoEl.innerHTML = `
+                    <div>
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-blue-700">Warga:</span>
+                        <h4 class="font-extrabold text-sm text-slate-900">${warga.nama} <span class="text-xs text-slate-500">(Blok ${warga.blok})</span></h4>
+                        <p class="text-[11px] text-slate-600">Kategori: <b>${warga.status}</b> • Iuran: <b>Rp ${nominalPerBulan.toLocaleString('id-ID')} / bln</b></p>
+                    </div>
+                    <div class="flex items-center gap-3 text-right">
+                        <div>
+                            <span class="text-[10px] font-bold text-emerald-700 block">Total Sudah Lunas:</span>
+                            <span class="font-black text-emerald-800 text-sm">Rp ${totalLunas.toLocaleString('id-ID')}</span>
+                        </div>
+                        <div>
+                            <span class="text-[10px] font-bold text-rose-700 block">Sisa Tunggakan:</span>
+                            <span class="font-black text-rose-800 text-sm">Rp ${totalBelum.toLocaleString('id-ID')}</span>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        function bukaModalMultiBulanDariTahunan() {
+            const selectW = document.getElementById('select-warga-tahunan');
+            tutupModalRiwayatWargaTahunan();
+            bukaModalMultiBulan(selectW ? selectW.value : null);
+        }
+
+        // ================= FITUR 3: PEMBAYARAN MULTI-BULAN (BAYAR SEKALIGUS) =================
+        function bukaModalMultiBulan(defaultWargaId) {
+            if (!isAdminLoggedIn) return alert("Hanya pengurus / admin yang dapat mengakses fitur pembayaran multi-bulan.");
+
+            const selectW = document.getElementById('multi-warga-select');
+            const selectK = document.getElementById('multi-kas-select');
+
+            if (selectW) {
+                selectW.innerHTML = '';
+                dataWarga.forEach(w => {
+                    selectW.innerHTML += `<option value="${w.id}">Blok ${w.blok} - ${w.nama} (${w.status})</option>`;
+                });
+                if (defaultWargaId) selectW.value = String(defaultWargaId);
+            }
+
+            if (selectK) {
+                selectK.innerHTML = '';
+                jenisKasList.forEach(k => {
+                    selectK.innerHTML += `<option value="${k}">${k}</option>`;
+                });
+            }
+
+            renderCheckboxMultiBulan();
+            toggleModal('modal-multi-bulan', 'open');
+        }
+
+        function tutupModalMultiBulan() {
+            toggleModal('modal-multi-bulan', 'close');
+        }
+
+        function renderCheckboxMultiBulan() {
+            const selectW = document.getElementById('multi-warga-select');
+            const selectK = document.getElementById('multi-kas-select');
+            const container = document.getElementById('container-checkbox-bulan');
+            const wId = selectW ? selectW.value : null;
+            const kName = selectK ? selectK.value : "Kas Bulanan";
+
+            const warga = dataWarga.find(w => String(w.id) === String(wId));
+            if (!warga || !container) return;
+
+            let nominalPerBulan = Number(warga.nominal) || 55000;
+            container.innerHTML = '';
+
+            DAFTAR_BULAN_LENGKAP.forEach(bulan => {
+                let periodeStr = `${bulan} 2026`;
+                let tagihan = dataTagihan.find(t => {
+                    let matchWarga = String(t.wargaId) === String(warga.id) || (t.nama === warga.nama && t.blok === warga.blok);
+                    let matchKas = String(t.jenisKas || '').trim().toLowerCase() === String(kName).trim().toLowerCase();
+                    let matchPeriode = String(t.periode || '').trim().toLowerCase() === periodeStr.toLowerCase();
+                    return matchWarga && matchKas && matchPeriode;
+                });
+
+                let isLunas = tagihan && tagihan.status === "LUNAS";
+                let disabledAttr = isLunas ? "disabled checked" : "";
+                let bgStyle = isLunas ? "bg-emerald-50 border-emerald-300 opacity-60" : "bg-white border-slate-200 hover:border-blue-300";
+                let badgeText = isLunas ? "<span class='text-[9px] font-bold text-emerald-700'>LUNAS</span>" : `<span class='text-[9px] text-slate-500 font-semibold'>Rp ${nominalPerBulan.toLocaleString('id-ID')}</span>`;
+
+                container.innerHTML += `
+                    <label class="border ${bgStyle} p-2.5 rounded-xl flex items-center justify-between gap-2 cursor-pointer transition select-none">
+                        <div class="flex items-center gap-2">
+                            <input type="checkbox" class="cb-multi-bulan accent-emerald-600 w-4 h-4 rounded cursor-pointer" data-bulan="${bulan}" data-nominal="${nominalPerBulan}" ${disabledAttr} onchange="hitungTotalMultiBulan()">
+                            <span class="font-bold text-xs text-slate-800">${bulan}</span>
+                        </div>
+                        ${badgeText}
+                    </label>
+                `;
+            });
+
+            hitungTotalMultiBulan();
+        }
+
+        function centangSemuaBulanMulti(status) {
+            const checkboxes = document.querySelectorAll('.cb-multi-bulan:not(:disabled)');
+            checkboxes.forEach(cb => cb.checked = status);
+            hitungTotalMultiBulan();
+        }
+
+        function hitungTotalMultiBulan() {
+            const checkboxes = document.querySelectorAll('.cb-multi-bulan:not(:disabled):checked');
+            let total = 0;
+            checkboxes.forEach(cb => {
+                total += Number(cb.getAttribute('data-nominal')) || 0;
+            });
+
+            const countEl = document.getElementById('count-bulan-terpilih');
+            const totalEl = document.getElementById('total-nominal-multi-bulan');
+            if (countEl) countEl.innerText = checkboxes.length;
+            if (totalEl) totalEl.innerText = `Rp ${total.toLocaleString('id-ID')}`;
+        }
+
+        async function eksekusiBayarMultiBulan() {
+            if (!isAdminLoggedIn) return;
+            const selectW = document.getElementById('multi-warga-select');
+            const selectK = document.getElementById('multi-kas-select');
+            const checkboxes = document.querySelectorAll('.cb-multi-bulan:not(:disabled):checked');
+
+            if (checkboxes.length === 0) return alert("Pilih minimal 1 bulan yang ingin dibayar!");
+
+            const wId = selectW.value;
+            const kName = selectK.value;
+            const warga = dataWarga.find(w => String(w.id) === String(wId));
+            if (!warga) return alert("Data warga tidak valid!");
+
+            const bulanList = Array.from(checkboxes).map(cb => cb.getAttribute('data-bulan'));
+            let totalNominal = 0;
+            checkboxes.forEach(cb => { totalNominal += Number(cb.getAttribute('data-nominal')) || 0; });
+
+            if (!confirm(`Konfirmasi pelunasan ${bulanList.length} bulan (${bulanList.join(", ")})\nTotal: Rp ${totalNominal.toLocaleString('id-ID')} untuk ${warga.nama} (Blok ${warga.blok})?`)) return;
+
+            let tagihanToSync = [];
+            let trxToSync = [];
+
+            bulanList.forEach(bulan => {
+                let periodeStr = `${bulan} 2026`;
+                let cleanPeriode = String(periodeStr).replace(/\s+/g, '');
+                let cleanKas = String(kName).replace(/\s+/g, '');
+                let uniqueTagihanId = `T_${warga.id}_${cleanPeriode}_${cleanKas}`;
+                let nominal = Number(warga.nominal) || 55000;
+
+                let tagihan = dataTagihan.find(t => String(t.id) === uniqueTagihanId || (t.wargaId === String(warga.id) && t.periode === periodeStr && t.jenisKas === kName));
+
+                if (tagihan) {
+                    tagihan.status = "LUNAS";
+                    tagihan.nominal = nominal;
+                } else {
+                    tagihan = {
+                        id: uniqueTagihanId,
+                        wargaId: String(warga.id),
+                        nama: warga.nama,
+                        blok: warga.blok,
+                        periode: periodeStr,
+                        jenisKas: kName,
+                        nominal: nominal,
+                        status: "LUNAS"
+                    };
+                    dataTagihan.push(tagihan);
+                }
+
+                let trxObj = {
+                    id: "TRX_" + tagihan.id,
+                    tagihanId: String(tagihan.id),
+                    tipe: "MASUK",
+                    kategori: "Iuran Warga",
+                    jenisKas: kName,
+                    nominal: nominal,
+                    keterangan: `Iuran ${warga.nama} (Blok ${warga.blok}) - ${periodeStr} - ${kName}`,
+                    tanggal: new Date().toISOString().split('T')[0],
+                    bukti: "-"
+                };
+
+                dataTransaksi = dataTransaksi.filter(tr => String(tr.tagihanId) !== String(tagihan.id) && String(tr.id) !== trxObj.id);
+                dataTransaksi.push(trxObj);
+
+                tagihanToSync.push(tagihan);
+                trxToSync.push(trxObj);
+            });
+
+            dataTagihan = bersihkanDataTagihan(dataTagihan);
+            dataTransaksi = bersihkanDataTransaksi(dataTransaksi);
+            simpanLocalState();
+
+            tutupModalMultiBulan();
+            renderTagihan();
+            renderRiwayatTransaksi();
+            updateDashboardView();
+
+            if (firebaseConnected && db) {
+                try {
+                    for (let t of tagihanToSync) await db.collection("tagihan").doc(String(t.id)).set(t, {merge:true});
+                    for (let tr of trxToSync) await db.collection("transaksi").doc(String(tr.id)).set(tr, {merge:true});
+                } catch(e) { console.error("Firebase multi-bulan error:", e); }
+            }
+
+            alert(`✅ Berhasil melunaskan ${bulanList.length} bulan untuk ${warga.nama}!`);
+        }
+
+        // ================= FITUR 7: CETAK E-KWITANSI DIGITAL PDF =================
+        function konversiAngkaKeTerbilang(angka) {
+            const bil = ["", "Satu", "Dua", "Tiga", "Empat", "Lima", "Enam", "Tujuh", "Delapan", "Sembilan", "Sepuluh", "Sebelas"];
+            let n = parseInt(angka, 10);
+            if (isNaN(n) || n === 0) return "Nol Rupiah";
+            function kata(x) {
+                if (x < 12) return bil[x];
+                if (x < 20) return kata(x - 10) + " Belas";
+                if (x < 100) return kata(Math.floor(x / 10)) + " Puluh " + kata(x % 10);
+                if (x < 200) return "Seratus " + kata(x - 100);
+                if (x < 1000) return kata(Math.floor(x / 100)) + " Ratus " + kata(x % 100);
+                if (x < 2000) return "Seribu " + kata(x - 1000);
+                if (x < 1000000) return kata(Math.floor(x / 1000)) + " Ribu " + kata(x % 1000);
+                if (x < 1000000000) return kata(Math.floor(x / 1000000)) + " Juta " + kata(x % 1000000);
+                return x.toString();
+            }
+            return (kata(n).trim() + " Rupiah").replace(/\s+/g, ' ');
+        }
+
+        function cetakEkwitansiTagihan(tagihanId) {
+            const tagihan = dataTagihan.find(t => String(t.id) === String(tagihanId));
+            if (!tagihan) return alert("Data tagihan tidak ditemukan!");
+
+            const trx = dataTransaksi.find(tr => String(tr.tagihanId) === String(tagihan.id));
+            const tglBayar = trx && trx.tanggal ? trx.tanggal : new Date().toISOString().split('T')[0];
+            const noKwitansi = `KW/RT02/${tagihan.periode ? tagihan.periode.replace(/[^a-zA-Z0-9]/g, '') : '2026'}/${tagihan.id.slice(-6)}`;
+            const nominal = Number(tagihan.nominal) || 0;
+            const terbilang = konversiAngkaKeTerbilang(nominal);
+
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: [148, 105] }); // A6 Landscape
+
+            // Border & Header Kwitansi
+            doc.setDrawColor(21, 128, 61);
+            doc.setLineWidth(1);
+            doc.roundedRect(6, 6, 136, 93, 3, 3, "D");
+
+            // Header Banner
+            doc.setFillColor(21, 128, 61);
+            doc.rect(6, 6, 136, 15, "F");
+            doc.setTextColor(255, 255, 255);
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(11);
+            doc.text("KWITANSI RESMI PEMBAYARAN IURAN KAS RT", 74, 13, { align: "center" });
+            doc.setFontSize(8);
+            doc.text("RUKUN TETANGGA 002 / RUKUN WARGA 007 - TAMAN KERTAMUKTI RESIDENCE", 74, 18, { align: "center" });
+
+            // Isi Kwitansi
+            doc.setTextColor(0, 0, 0);
+            doc.setFontSize(8);
+            doc.setFont("helvetica", "normal");
+
+            let y = 28;
+            doc.text(`No. Kwitansi`, 12, y); doc.text(`: ${noKwitansi}`, 44, y); y += 6;
+            doc.text(`Telah Diterima Dari`, 12, y); 
+            doc.setFont("helvetica", "bold");
+            doc.text(`: ${tagihan.nama} (Blok ${tagihan.blok})`, 44, y); 
+            doc.setFont("helvetica", "normal");
+            y += 6;
+
+            doc.text(`Untuk Pembayaran`, 12, y); doc.text(`: Iuran ${tagihan.jenisKas} Periode ${tagihan.periode}`, 44, y); y += 6;
+            doc.text(`Jumlah Uang`, 12, y); 
+            doc.setFont("helvetica", "bold");
+            doc.text(`: Rp ${nominal.toLocaleString('id-ID')}`, 44, y); 
+            doc.setFont("helvetica", "normal");
+            y += 6;
+
+            doc.text(`Terbilang`, 12, y); 
+            doc.setFont("helvetica", "italic");
+            doc.text(`: # ${terbilang} #`, 44, y); 
+            doc.setFont("helvetica", "normal");
+            y += 8;
+
+            // Box Nominal & Cap Digital
+            doc.setFillColor(240, 253, 244);
+            doc.setDrawColor(34, 197, 94);
+            doc.setLineWidth(0.5);
+            doc.roundedRect(12, y, 55, 14, 2, 2, "FD");
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(11);
+            doc.setTextColor(21, 128, 61);
+            doc.text(`Rp ${nominal.toLocaleString('id-ID')}`, 39, y + 9, { align: "center" });
+
+            // Tanda Tangan & Cap Lunas
+            doc.setFontSize(8);
+            doc.setTextColor(50, 50, 50);
+            doc.text(`Bekasi, ${tglBayar}`, 115, y + 2, { align: "center" });
+            doc.setFont("helvetica", "bold");
+            doc.setTextColor(21, 128, 61);
+            doc.text(`[ LUNAS / TERVERIFIKASI ]`, 115, y + 8, { align: "center" });
+            doc.setTextColor(0, 0, 0);
+            doc.setFont("helvetica", "normal");
+            doc.text(`Bendahara RT 002 / RW 007`, 115, y + 14, { align: "center" });
+
+            let namaFile = `Kwitansi_${tagihan.nama.replace(/[^a-zA-Z0-9]/g, '_')}_${tagihan.periode.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
+            doc.save(namaFile);
+        }
+
+        // ================= FITUR 5: PAPAN PENGUMUMAN & AGENDA RT =================
+        let pengumumanRT = loadSafeStorage('rt_pengumuman_text', "Pembayaran Iuran RT.002 paling lambat tanggal 10 setiap bulannya via Scan QRIS atau Transfer BSI. Terima kasih!");
+
+        function bukaModalEditPengumuman() {
+            if (!isAdminLoggedIn) return;
+            const inp = document.getElementById('input-teks-pengumuman');
+            if (inp) inp.value = pengumumanRT;
+            toggleModal('modal-edit-pengumuman', 'open');
+        }
+
+        function tutupModalEditPengumuman() {
+            toggleModal('modal-edit-pengumuman', 'close');
+        }
+
+        async function simpanPengumumanRT() {
+            if (!isAdminLoggedIn) return;
+            const inp = document.getElementById('input-teks-pengumuman');
+            const teks = inp ? inp.value.trim() : "";
+            if (!teks) return alert("Teks pengumuman tidak boleh kosong!");
+
+            pengumumanRT = teks;
+            localStorage.setItem('rt_pengumuman_text', teks);
+            updateTampilanPengumuman();
+            tutupModalEditPengumuman();
+
+            if (firebaseConnected && db) {
+                try {
+                    await db.collection("config").doc("pengumuman").set({ teks: pengumumanRT, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+                } catch(e) { console.error(e); }
+            }
+
+            alert("✅ Pengumuman berhasil diperbarui!");
+        }
+
+        function updateTampilanPengumuman() {
+            const el = document.getElementById('teks-pengumuman-rt');
+            if (el) el.innerText = pengumumanRT;
+        }
+
+        // ================= FITUR 6: PWA INSTALLATION SUPPORT =================
+        let deferredPromptPWA = null;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPromptPWA = e;
+            const btnPwa = document.getElementById('btn-install-pwa');
+            if (btnPwa) {
+                btnPwa.classList.remove('hidden');
+                btnPwa.classList.add('flex');
+            }
+        });
+
+        function installAplikasiPWA() {
+            if (deferredPromptPWA) {
+                deferredPromptPWA.prompt();
+                deferredPromptPWA.userChoice.then((choiceResult) => {
+                    if (choiceResult.outcome === 'accepted') {
+                        console.log('User accepted the PWA install prompt');
+                    }
+                    deferredPromptPWA = null;
+                });
+            } else {
+                alert("Untuk memasang aplikasi di HP:\n\n1. Di Chrome: Tekan titik tiga di kanan atas -> Pilih 'Tambahkan ke Layar Utama' (Add to Home Screen).\n2. Di Safari (iPhone): Tekan tombol Share -> Pilih 'Add to Home Screen'.");
+            }
+        }
+
         function setupUIMode() {
             const badgeStatus = document.getElementById('badge-status-mode');
             const btnLoginLogout = document.getElementById('btn-login-logout');
@@ -1183,29 +1897,36 @@
             const thAksiTransaksi = document.getElementById('th-aksi-transaksi');
             const thCheckboxAll = document.getElementById('th-checkbox-all');
             const containerBtnHapus = document.getElementById('container-btn-hapus-terpilih');
+            const sectionGrafik = document.getElementById('section-grafik-keuangan');
+            const btnEditPeng = document.getElementById('btn-edit-pengumuman-admin');
 
             if (isAdminLoggedIn) {
                 badgeStatus.className = "bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded-lg font-bold";
                 badgeStatus.innerText = "🛡️ Mode Admin (Full Access)";
                 btnLoginLogout.innerText = "🔒 Logout Admin";
-                btnLoginLogout.className = "bg-red-600 hover:bg-red-700 text-white px-3.5 py-1.5 rounded-lg text-xs font-bold transition shadow-sm";
+                btnLoginLogout.className = "bg-red-600 hover:bg-red-700 text-white px-3.5 py-1.5 rounded-lg text-xs font-bold transition shadow-sm cursor-pointer";
                 panelAdmin.classList.remove('hidden');
                 btnGenWarga.classList.remove('hidden');
                 thAksiTagihan.classList.remove('hidden');
                 thAksiTransaksi.classList.remove('hidden');
-                if(thCheckboxAll) thCheckboxAll.classList.remove('hidden');
-                if(containerBtnHapus) containerBtnHapus.classList.remove('hidden');
+                if (thCheckboxAll) thCheckboxAll.classList.remove('hidden');
+                if (containerBtnHapus) containerBtnHapus.classList.remove('hidden');
+                if (btnEditPeng) { btnEditPeng.classList.remove('hidden'); btnEditPeng.classList.add('flex'); }
+                if (sectionGrafik) { sectionGrafik.classList.remove('hidden'); renderSemuaGrafik(); }
             } else {
                 badgeStatus.className = "bg-blue-100 text-blue-700 px-3 py-1.5 rounded-lg font-bold";
                 badgeStatus.innerText = "👤 Mode Warga (Public)";
                 btnLoginLogout.innerText = "🔐 Login Admin";
-                btnLoginLogout.className = "bg-slate-900 hover:bg-slate-800 text-white px-3.5 py-1.5 rounded-lg text-xs font-bold transition shadow-sm";
+                btnLoginLogout.className = "bg-slate-900 hover:bg-slate-800 text-white px-3.5 py-1.5 rounded-lg text-xs font-bold transition shadow-sm cursor-pointer";
                 panelAdmin.classList.add('hidden');
                 btnGenWarga.classList.add('hidden');
                 thAksiTagihan.classList.add('hidden');
                 thAksiTransaksi.classList.add('hidden');
-                if(thCheckboxAll) thCheckboxAll.classList.add('hidden');
-                if(containerBtnHapus) containerBtnHapus.classList.add('hidden');
+                if (thCheckboxAll) thCheckboxAll.classList.add('hidden');
+                if (containerBtnHapus) containerBtnHapus.classList.add('hidden');
+                if (btnEditPeng) { btnEditPeng.classList.add('hidden'); btnEditPeng.classList.remove('flex'); }
+                // Sembunyikan grafik keuangan dari mode warga
+                if (sectionGrafik) sectionGrafik.classList.add('hidden');
             }
         }
 
@@ -1964,7 +2685,7 @@
                 let aksiTd = '';
                 if (isAdminLoggedIn) {
                     let aksiBtn = t.status === "LUNAS" ?
-                        `<div class="flex items-center justify-center gap-1.5"><button onclick="ubahStatusTagihan('${t.id}', 'BELUM')" class="text-slate-400 text-[11px] underline">Batal</button><button onclick="bukaModalEditNominalTagihan('${t.id}')" class="bg-blue-50 hover:bg-blue-100 text-blue-600 font-bold px-2 py-1 rounded-lg text-[11px]">✏️ Edit</button><button onclick="hapusTagihan('${t.id}')" class="bg-red-50 hover:bg-red-100 text-red-600 font-bold px-2 py-1 rounded-lg text-[11px]">🗑️ Hapus</button></div>` :
+                        `<div class="flex items-center justify-center gap-1.5"><button onclick="cetakEkwitansiTagihan('${t.id}')" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold px-2 py-1 rounded-lg text-[11px] transition shadow-xs" title="Cetak Kwitansi">🧾 Kwitansi</button><button onclick="ubahStatusTagihan('${t.id}', 'BELUM')" class="text-slate-400 text-[11px] underline">Batal</button><button onclick="bukaModalEditNominalTagihan('${t.id}')" class="bg-blue-50 hover:bg-blue-100 text-blue-600 font-bold px-2 py-1 rounded-lg text-[11px]">✏️ Edit</button><button onclick="hapusTagihan('${t.id}')" class="bg-red-50 hover:bg-red-100 text-red-600 font-bold px-2 py-1 rounded-lg text-[11px]">🗑️ Hapus</button></div>` :
                         `<div class="flex items-center justify-center gap-1.5"><button onclick="ubahStatusTagihan('${t.id}', 'LUNAS')" class="bg-green-600 hover:bg-green-700 text-white text-[11px] font-bold px-2.5 py-1 rounded-lg">✔ Bayar</button><button onclick="bukaModalEditNominalTagihan('${t.id}')" class="bg-blue-50 hover:bg-blue-100 text-blue-600 font-bold px-2 py-1 rounded-lg text-[11px]">✏️ Edit</button><button onclick="hapusTagihan('${t.id}')" class="bg-red-50 hover:bg-red-100 text-red-600 font-bold px-2 py-1 rounded-lg text-[11px]">🗑️ Hapus</button></div>`;
                     aksiTd = `<td class="py-2.5 px-3 text-center">${aksiBtn}</td>`;
                 }
@@ -2185,6 +2906,30 @@
             reader.readAsDataURL(fileInput.files[0]);
         }
 
+        
+        // ================= FILTER TIPE TRANSAKSI (DEFAULT: PEMASUKAN SAJA) =================
+        let filterTipeTransaksi = "MASUK"; // Default hanya tampilkan pemasukan
+
+        function gantiFilterTipeTransaksi(tipe) {
+            filterTipeTransaksi = tipe;
+            halamanAktifTransaksi = 1;
+
+            const btnMasuk = document.getElementById('btn-filter-trx-masuk');
+            const btnKeluar = document.getElementById('btn-filter-trx-keluar');
+            const btnSemua = document.getElementById('btn-filter-trx-semua');
+
+            const activeMasukClass = "bg-blue-600 text-white shadow-xs px-3.5 py-1.5 rounded-lg transition flex items-center gap-1.5 cursor-pointer font-bold";
+            const activeKeluarClass = "bg-rose-600 text-white shadow-xs px-3.5 py-1.5 rounded-lg transition flex items-center gap-1.5 cursor-pointer font-bold";
+            const activeSemuaClass = "bg-slate-800 text-white shadow-xs px-3.5 py-1.5 rounded-lg transition flex items-center gap-1.5 cursor-pointer font-bold";
+            const inactiveClass = "text-slate-600 hover:text-slate-900 px-3.5 py-1.5 rounded-lg transition flex items-center gap-1.5 cursor-pointer font-semibold";
+
+            if (btnMasuk) btnMasuk.className = (tipe === 'MASUK') ? activeMasukClass : inactiveClass;
+            if (btnKeluar) btnKeluar.className = (tipe === 'KELUAR') ? activeKeluarClass : inactiveClass;
+            if (btnSemua) btnSemua.className = (tipe === 'SEMUA') ? activeSemuaClass : inactiveClass;
+
+            renderRiwayatTransaksi();
+        }
+
         function renderRiwayatTransaksi() {
             const tbody = document.getElementById('tabel-riwayat-transaksi');
             if(!tbody) return;
@@ -2198,6 +2943,11 @@
                 if(!t) return false;
                 // Mode Warga: Sembunyikan riwayat transaksi kas subsidi
                 if (!isAdminLoggedIn && String(t.jenisKas || '').toLowerCase().includes("subsidi")) {
+                    return false;
+                }
+
+                // Filter Tipe Transaksi (Pemasukan Saja / Pengeluaran Saja / Semua)
+                if (filterTipeTransaksi !== "SEMUA" && t.tipe !== filterTipeTransaksi) {
                     return false;
                 }
 
@@ -2534,6 +3284,11 @@
             if(cSaldo) cSaldo.innerText = `Rp ${(totalMasuk - totalKeluar).toLocaleString('id-ID')}`;
             if(cMasuk) cMasuk.innerText = `Rp ${totalMasuk.toLocaleString('id-ID')}`;
             if(cKeluar) cKeluar.innerText = `Rp ${totalKeluar.toLocaleString('id-ID')}`;
+
+            // Refresh grafik secara otomatis
+            if (typeof renderSemuaGrafik === 'function') {
+                renderSemuaGrafik();
+            }
         }
 
         function eksekusiDownloadPdf() {
@@ -3173,5 +3928,149 @@
         </div>
     </div>
 
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a293d9800ad4bff8',t:'MTc4NjQxNTc1NA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+
+    <!-- ================= MODAL CEK STATUS IURAN 1 TAHUN (MATRIKS 12 BULAN) ================= -->
+    <div id="modal-riwayat-warga-tahunan" class="fixed inset-0 z-50 hidden flex items-center justify-center p-3 sm:p-4">
+        <div class="modal-overlay absolute inset-0 bg-slate-950/80 backdrop-blur-sm opacity-0 transition-opacity duration-300" onclick="tutupModalRiwayatWargaTahunan()"></div>
+        <div class="modal-content relative bg-white w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden opacity-0 translate-y-4 transition-all duration-300 flex flex-col max-h-[92vh] text-xs">
+            <div class="bg-gradient-to-r from-blue-700 via-indigo-700 to-slate-900 text-white p-4 sm:p-5 flex justify-between items-center">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center text-xl shadow-inner">🗓️</div>
+                    <div>
+                        <h3 class="font-extrabold text-sm text-white">Rekap Status Iuran 1 Tahun (Januari - Desember)</h3>
+                        <p class="text-[11px] text-blue-100">Cek histori pembayaran iuran per rumah / unit warga.</p>
+                    </div>
+                </div>
+                <button onclick="tutupModalRiwayatWargaTahunan()" class="text-white/80 hover:text-white text-2xl font-bold p-1">&times;</button>
+            </div>
+            
+            <div class="p-4 sm:p-5 overflow-y-auto custom-scroll space-y-4 text-slate-700">
+                <!-- Filter Pilih Warga & Jenis Kas -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 bg-slate-50 p-3 rounded-2xl border border-slate-200">
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-500 mb-1">Pilih Warga / Blok Unit:</label>
+                        <select id="select-warga-tahunan" onchange="renderMatriksTahunanWarga()" class="w-full bg-white border border-slate-200 p-2 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer">
+                            <!-- Diisi dinamis -->
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-500 mb-1">Pilih Jenis Kas:</label>
+                        <select id="select-kas-tahunan" onchange="renderMatriksTahunanWarga()" class="w-full bg-white border border-slate-200 p-2 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer">
+                            <!-- Diisi dinamis -->
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Info Ringkasan Warga -->
+                <div id="info-rekap-warga-tahunan" class="bg-blue-50/70 border border-blue-200 p-3.5 rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                    <!-- Diisi dinamis -->
+                </div>
+
+                <!-- Grid 12 Bulan -->
+                <div>
+                    <h4 class="font-extrabold text-slate-800 text-xs mb-2 flex items-center gap-1.5">
+                        <span>📅</span> Status 12 Bulan (Tahun 2026):
+                    </h4>
+                    <div id="grid-12-bulan-warga" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                        <!-- Diisi dinamis -->
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-3.5 bg-slate-50 border-t border-slate-200 flex flex-wrap items-center justify-between gap-2">
+                <button onclick="bukaModalMultiBulanDariTahunan()" id="btn-bayar-multi-dari-tahunan" class="hidden bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2 rounded-xl text-xs transition shadow-sm items-center gap-1.5">
+                    <span>💳 Bayar Multi-Bulan (Admin)</span>
+                </button>
+                <button onclick="tutupModalRiwayatWargaTahunan()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold px-4 py-2 rounded-xl text-xs transition ml-auto">
+                    Tutup
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= MODAL PEMBAYARAN MULTI-BULAN (BAYAR SEKALIGUS) ================= -->
+    <div id="modal-multi-bulan" class="fixed inset-0 z-50 hidden flex items-center justify-center p-3 sm:p-4">
+        <div class="modal-overlay absolute inset-0 bg-slate-950/80 backdrop-blur-sm opacity-0 transition-opacity duration-300" onclick="tutupModalMultiBulan()"></div>
+        <div class="modal-content relative bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden opacity-0 translate-y-4 transition-all duration-300 flex flex-col max-h-[92vh] text-xs">
+            <div class="bg-gradient-to-r from-emerald-600 to-teal-700 text-white p-4 sm:p-5 flex justify-between items-center">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center text-xl shadow-inner">💳</div>
+                    <div>
+                        <h3 class="font-extrabold text-sm text-white">Pembayaran Iuran Multi-Bulan (Sekaligus)</h3>
+                        <p class="text-[11px] text-emerald-100">Bayar beberapa bulan sekaligus dalam 1 kali konfirmasi.</p>
+                    </div>
+                </div>
+                <button onclick="tutupModalMultiBulan()" class="text-white/80 hover:text-white text-2xl font-bold p-1">&times;</button>
+            </div>
+
+            <div class="p-4 sm:p-5 overflow-y-auto custom-scroll space-y-4 text-slate-700">
+                <div class="space-y-2.5">
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-500 mb-1">Pilih Warga:</label>
+                        <select id="multi-warga-select" onchange="renderCheckboxMultiBulan()" class="w-full bg-slate-50 border border-slate-200 p-2.5 rounded-xl text-xs font-bold outline-none cursor-pointer">
+                            <!-- Diisi dinamis -->
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-500 mb-1">Pilih Jenis Kas:</label>
+                        <select id="multi-kas-select" onchange="renderCheckboxMultiBulan()" class="w-full bg-slate-50 border border-slate-200 p-2.5 rounded-xl text-xs font-bold outline-none cursor-pointer">
+                            <!-- Diisi dinamis -->
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Checkbox Bulan -->
+                <div class="space-y-2">
+                    <div class="flex justify-between items-center">
+                        <label class="text-[11px] font-extrabold text-slate-800">Centang Bulan yang Ingin Dibayar:</label>
+                        <button type="button" onclick="centangSemuaBulanMulti(true)" class="text-blue-600 font-bold text-[11px] hover:underline">Centang Semua</button>
+                    </div>
+                    <div id="container-checkbox-bulan" class="grid grid-cols-2 sm:grid-cols-3 gap-2 bg-slate-50 p-3 rounded-2xl border border-slate-200">
+                        <!-- Diisi dinamis -->
+                    </div>
+                </div>
+
+                <!-- Total Kalkulasi -->
+                <div class="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 p-3.5 rounded-2xl flex justify-between items-center">
+                    <div>
+                        <span class="text-[10px] font-bold text-emerald-700 uppercase tracking-wider block">Total Pembayaran (<span id="count-bulan-terpilih">0</span> Bulan)</span>
+                        <h3 id="total-nominal-multi-bulan" class="text-xl font-black text-emerald-800">Rp 0</h3>
+                    </div>
+                    <span class="text-2xl">💰</span>
+                </div>
+            </div>
+
+            <div class="p-3.5 bg-slate-50 border-t border-slate-200 flex items-center justify-between gap-2">
+                <button type="button" onclick="eksekusiBayarMultiBulan()" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-2.5 px-4 rounded-xl text-xs transition shadow-md flex items-center justify-center gap-1.5 cursor-pointer">
+                    <span>✔ Konfirmasi & Lunaskan Sekarang</span>
+                </button>
+                <button type="button" onclick="tutupModalMultiBulan()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-2.5 px-4 rounded-xl text-xs transition cursor-pointer">
+                    Batal
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= MODAL EDIT PENGUMUMAN RT (ADMIN) ================= -->
+    <div id="modal-edit-pengumuman" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4">
+        <div class="modal-overlay absolute inset-0 bg-slate-950/80 backdrop-blur-sm opacity-0" onclick="tutupModalEditPengumuman()"></div>
+        <div class="modal-content relative bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden opacity-0 translate-y-4 p-5 space-y-3 text-xs">
+            <div class="flex justify-between items-center border-b pb-2.5">
+                <h3 class="font-bold text-sm text-slate-900">✏️ Edit Papan Pengumuman Warga</h3>
+                <button onclick="tutupModalEditPengumuman()" class="text-slate-400 text-lg">&times;</button>
+            </div>
+            <div class="space-y-2.5">
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-500 mb-1">Teks Pengumuman (Akan tampil di bagian atas untuk seluruh warga):</label>
+                    <textarea id="input-teks-pengumuman" rows="4" class="w-full bg-slate-50 border border-slate-200 p-2.5 rounded-xl text-xs outline-none focus:ring-2 focus:ring-amber-500" placeholder="Ketik pengumuman atau agenda kegiatan RT di sini..."></textarea>
+                </div>
+            </div>
+            <div class="flex gap-2 pt-2 border-t">
+                <button onclick="simpanPengumumanRT()" class="flex-1 bg-amber-600 hover:bg-amber-700 text-white font-bold py-2.5 rounded-xl transition shadow text-xs">💾 Simpan Pengumuman</button>
+                <button onclick="tutupModalEditPengumuman()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 px-4 rounded-xl transition text-xs">Batal</button>
+            </div>
+        </div>
+    </div>
+
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a293feda482de783',t:'MTc4NjQxNzI4NA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
