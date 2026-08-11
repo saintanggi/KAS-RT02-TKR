@@ -82,7 +82,7 @@
                 <!-- KARTU RINGKASAN SALDO -->
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <div class="bg-white/90 backdrop-blur-md p-4 rounded-2xl shadow-[0_4px_15px_rgb(0,0,0,0.05)] border border-white/50">
-                        <p class="text-[10px] text-slate-400 font-bold tracking-wider mb-1 uppercase">Total Saldo Kas Ini</p>
+                        <p id="label-card-saldo" class="text-[10px] text-slate-400 font-bold tracking-wider mb-1 uppercase">Total Saldo Kas Ini</p>
                         <h2 id="card-saldo" class="text-2xl font-extrabold text-slate-800">Rp 0</h2>
                     </div>
                     <div class="bg-white/90 backdrop-blur-md p-4 rounded-2xl shadow-[0_4px_15px_rgb(0,0,0,0.05)] border border-white/50">
@@ -956,7 +956,21 @@
         let dataTagihan = bersihkanDataTagihan(rawTagihan);
         let dataTransaksi = bersihkanDataTransaksi(rawTransaksi);
 
-        let kasAktifFilter = "SEMUA"; // Default SEMUA untuk semua user agar saldo konsisten
+                // Helper untuk mendapatkan jenis kas yang boleh dilihat oleh user aktif
+        function getDaftarKasTersedia() {
+            if (isAdminLoggedIn) {
+                return [...jenisKasList];
+            } else {
+                // Mode Warga: Sembunyikan Kas Subsidi
+                return jenisKasList.filter(k => !String(k).toLowerCase().includes("subsidi"));
+            }
+        }
+
+        let kasAktifFilter = (() => {
+            if (isAdminLoggedIn) return "SEMUA";
+            let listWarga = jenisKasList.filter(k => !String(k).toLowerCase().includes("subsidi"));
+            return listWarga[0] || "Kas Bulanan";
+        })();
         let halamanAktifTagihan = 1;
         let halamanAktifWarga = 1;
         let halamanAktifTransaksi = 1;
@@ -1294,12 +1308,14 @@
 
         const bukaModalPdf = () => {
             const selectPdfKas = document.getElementById('pdf-jeniskas');
+            const availableKas = getDaftarKasTersedia();
+
             if(selectPdfKas) {
                 selectPdfKas.innerHTML = '';
                 if (isAdminLoggedIn) {
-                    selectPdfKas.innerHTML += `<option value="SEMUA">📂 Semua Jenis Kas (Keseluruhan)</option>`;
+                    selectPdfKas.innerHTML += `<option value="SEMUA">📂 Semua Jenis Kas (Keseluruhan Pengurus)</option>`;
                 }
-                jenisKasList.forEach(k => { selectPdfKas.innerHTML += `<option value="${k}">${k}</option>`; });
+                availableKas.forEach(k => { selectPdfKas.innerHTML += `<option value="${k}">${k}</option>`; });
             }
             gantiJenisLaporanPdf(document.getElementById('pdf-jenis-laporan').value);
             toggleModal('modal-pdf', 'open');
@@ -1508,15 +1524,23 @@
             const selectManMasuk = document.getElementById('man-masuk-kas');
             const selectOut = document.getElementById('out-jeniskas');
 
+            const availableKas = getDaftarKasTersedia();
             let currentVal = menuSelect ? menuSelect.value : kasAktifFilter;
-            if(menuSelect) {
+
+            if (menuSelect) {
                 menuSelect.innerHTML = '';
-                menuSelect.innerHTML += `<option value="SEMUA">📂 Tampilkan Semua Kas (Total)</option>`;
-                jenisKasList.forEach(k => { menuSelect.innerHTML += `<option value="${k}">${k}</option>`; });
+                // Opsi SEMUA hanya untuk Pengurus / Admin yang login
+                if (isAdminLoggedIn) {
+                    menuSelect.innerHTML += `<option value="SEMUA">📂 Tampilkan Semua Kas (Total Pengurus)</option>`;
+                }
+                availableKas.forEach(k => {
+                    menuSelect.innerHTML += `<option value="${k}">${k}</option>`;
+                });
             }
-            if(selectWarga) selectWarga.innerHTML = ''; 
-            if(selectManMasuk) selectManMasuk.innerHTML = ''; 
-            if(selectOut) selectOut.innerHTML = '';
+
+            if (selectWarga) selectWarga.innerHTML = ''; 
+            if (selectManMasuk) selectManMasuk.innerHTML = ''; 
+            if (selectOut) selectOut.innerHTML = '';
 
             jenisKasList.forEach(k => {
                 if(selectWarga) selectWarga.innerHTML += `<option value="${k}">${k}</option>`;
@@ -1524,18 +1548,39 @@
                 if(selectOut) selectOut.innerHTML += `<option value="${k}">${k}</option>`;
             });
 
-            if (currentVal !== "SEMUA" && !jenisKasList.includes(currentVal)) {
-                currentVal = "SEMUA";
-                kasAktifFilter = currentVal;
+            if (!isAdminLoggedIn) {
+                // Untuk mode warga: pastikan tidak memilih SEMUA atau Kas Subsidi
+                if (currentVal === "SEMUA" || currentVal.toLowerCase().includes("subsidi") || !availableKas.includes(currentVal)) {
+                    currentVal = availableKas[0] || "Kas Bulanan";
+                    kasAktifFilter = currentVal;
+                }
+            } else {
+                if (currentVal !== "SEMUA" && !jenisKasList.includes(currentVal)) {
+                    currentVal = "SEMUA";
+                    kasAktifFilter = currentVal;
+                }
             }
-            if(menuSelect) menuSelect.value = currentVal;
+
+            if (menuSelect) menuSelect.value = currentVal;
+
+            const judul = document.getElementById('judul-kas-aktif');
+            if (judul) {
+                judul.innerText = currentVal === "SEMUA" ? "Semua Jenis Kas (Pengurus)" : currentVal;
+            }
         }
 
         function gantiFilterKas(nilai) {
-            // Izinkan publik dan admin melihat SEMUA
-            kasAktifFilter = nilai; halamanAktifTagihan = 1; halamanAktifTransaksi = 1;
+            if (!isAdminLoggedIn) {
+                let availableKas = getDaftarKasTersedia();
+                if (nilai === "SEMUA" || nilai.toLowerCase().includes("subsidi") || !availableKas.includes(nilai)) {
+                    nilai = availableKas[0] || "Kas Bulanan";
+                }
+            }
+            kasAktifFilter = nilai; 
+            halamanAktifTagihan = 1; 
+            halamanAktifTransaksi = 1;
             const judul = document.getElementById('judul-kas-aktif');
-            if(judul) judul.innerText = nilai === "SEMUA" ? "Semua Jenis Kas" : nilai;
+            if(judul) judul.innerText = nilai === "SEMUA" ? "Semua Jenis Kas (Pengurus)" : nilai;
             updateDashboardView(); renderTagihan(); renderRiwayatTransaksi();
         }
 
@@ -1859,8 +1904,14 @@
                 let wargaM = dataWarga.find(w => String(w.id) === String(t.wargaId) || (w.nama === t.nama && w.blok === t.blok));
                 if (wargaM && (wargaM.status === "Pengurus (Gratis)" || wargaM.status === "Rumah Kosong" || wargaM.status === "Pindah")) return false;
 
+                // Mode Warga: Sembunyikan tagihan kas subsidi
+                if (!isAdminLoggedIn && String(t.jenisKas || '').toLowerCase().includes("subsidi")) {
+                    return false;
+                }
+
                 const matchBulan = t.periode && (String(t.periode).trim().toLowerCase() === String(bulanPilih).trim().toLowerCase());
-                const matchKas = (kasAktifFilter === "SEMUA" || (t.jenisKas && String(t.jenisKas).trim().toLowerCase() === String(kasAktifFilter).trim().toLowerCase()));
+                const matchKas = (isAdminLoggedIn && kasAktifFilter === "SEMUA") || 
+                                 (t.jenisKas && String(t.jenisKas).trim().toLowerCase() === String(kasAktifFilter).trim().toLowerCase());
                 if (!matchBulan || !matchKas) return false;
                 if (!keyword) return true;
 
@@ -2145,7 +2196,13 @@
 
             const filtered = dataTransaksi.filter(t => {
                 if(!t) return false;
-                const matchKas = (kasAktifFilter === "SEMUA" || (t.jenisKas && String(t.jenisKas).trim().toLowerCase() === String(kasAktifFilter).trim().toLowerCase()));
+                // Mode Warga: Sembunyikan riwayat transaksi kas subsidi
+                if (!isAdminLoggedIn && String(t.jenisKas || '').toLowerCase().includes("subsidi")) {
+                    return false;
+                }
+
+                const matchKas = (isAdminLoggedIn && kasAktifFilter === "SEMUA") || 
+                                 (t.jenisKas && String(t.jenisKas).trim().toLowerCase() === String(kasAktifFilter).trim().toLowerCase());
                 if (!matchKas) return false;
                 if (!keyword) return true;
 
@@ -2441,18 +2498,38 @@
 
         function updateDashboardView() {
             let totalMasuk = 0, totalKeluar = 0;
+            
             dataTransaksi.forEach(t => {
                 if(!t) return;
-                let matchKas = (kasAktifFilter === "SEMUA" || (t.jenisKas && String(t.jenisKas).trim().toLowerCase() === String(kasAktifFilter).trim().toLowerCase()));
+                let tKas = String(t.jenisKas || "").trim();
+
+                // Mode Warga: Sembunyikan transaksi Kas Subsidi
+                if (!isAdminLoggedIn && tKas.toLowerCase().includes("subsidi")) {
+                    return;
+                }
+
+                let matchKas = (isAdminLoggedIn && kasAktifFilter === "SEMUA") || 
+                               (tKas.toLowerCase() === String(kasAktifFilter).trim().toLowerCase());
+                
                 if (matchKas) {
                     let nominalAman = Number(t.nominal) || 0;
                     if(t.tipe === "MASUK") totalMasuk += nominalAman;
                     if(t.tipe === "KELUAR") totalKeluar += nominalAman;
                 }
             });
+
             const cSaldo = document.getElementById('card-saldo');
             const cMasuk = document.getElementById('card-masuk');
             const cKeluar = document.getElementById('card-keluar');
+            const lblSaldo = document.getElementById('label-card-saldo');
+
+            if (lblSaldo) {
+                if (isAdminLoggedIn && kasAktifFilter === "SEMUA") {
+                    lblSaldo.innerText = "TOTAL SALDO (SEMUA KAS RT)";
+                } else {
+                    lblSaldo.innerText = `TOTAL SALDO (${kasAktifFilter.toUpperCase()})`;
+                }
+            }
 
             if(cSaldo) cSaldo.innerText = `Rp ${(totalMasuk - totalKeluar).toLocaleString('id-ID')}`;
             if(cMasuk) cMasuk.innerText = `Rp ${totalMasuk.toLocaleString('id-ID')}`;
@@ -3096,5 +3173,5 @@
         </div>
     </div>
 
-</body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a293d9800ad4bff8',t:'MTc4NjQxNTc1NA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
