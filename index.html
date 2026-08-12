@@ -543,7 +543,7 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
                         <input type="text" id="w-nama" placeholder="Nama Kepala Keluarga" class="bg-white border border-slate-200 px-3 py-2 rounded-lg outline-none">
                         <input type="text" id="w-blok" placeholder="Blok / No Rumah (Cth: C6)" class="bg-white border border-slate-200 px-3 py-2 rounded-lg outline-none">
-                        <input type="text" id="w-hp" placeholder="No HP" class="bg-white border border-slate-200 px-3 py-2 rounded-lg outline-none">
+                        <input type="text" id="w-hp" placeholder="No WhatsApp (Cth: +62 858-8121-4140 atau 0858...)" class="bg-white border border-slate-200 px-3 py-2 rounded-lg outline-none font-medium">
                         <select id="w-status" class="bg-white border border-slate-200 px-3 py-2 rounded-lg outline-none font-semibold">
                             <option value="Tetap">Status: Warga Tetap</option>
                             <option value="Kontrak">Status: Warga Kontrak</option>
@@ -1814,7 +1814,9 @@
 
             const trx = dataTransaksi.find(tr => String(tr.tagihanId) === String(tagihan.id));
             const tglBayar = trx && trx.tanggal ? trx.tanggal : new Date().toISOString().split('T')[0];
-            const noKwitansi = `KW/RT02/${tagihan.periode ? tagihan.periode.replace(/[^a-zA-Z0-9]/g, '') : '2026'}/${tagihan.id.slice(-6)}`;
+            const cleanPeriode = String(tagihan.periode || '2026').replace(/\s+/g, '-').toUpperCase();
+            const cleanBlok = String(tagihan.blok || 'UNIT').replace(/[^a-zA-Z0-9]/g, '-').toUpperCase();
+            const noKwitansi = `KW/RT02/${cleanPeriode}/${cleanBlok}`;
             const nominal = Number(tagihan.nominal) || 0;
             const terbilang = konversiAngkaKeTerbilang(nominal);
 
@@ -2451,7 +2453,8 @@
             const editId = document.getElementById('edit-id-warga').value;
             const nama = document.getElementById('w-nama').value.trim();
             const blok = document.getElementById('w-blok').value.trim();
-            const hp = document.getElementById('w-hp').value.trim() || "-";
+            const rawHp = document.getElementById('w-hp').value.trim();
+            const hp = normalisasiNomorHP(rawHp);
             const status = document.getElementById('w-status').value;
             const nominal = parseInt(document.getElementById('w-nominal').value) || 0;
             const jenisKas = document.getElementById('w-jeniskas').value;
@@ -2476,6 +2479,126 @@
 
             tulisLog("TAMBAH/EDIT_WARGA", `${dataObj.nama} Blok ${dataObj.blok} - ${dataObj.status} Rp ${dataObj.nominal}`);
             alert("Data warga berhasil disimpan! (Firebase)");
+        }
+
+        
+        // ================= SISTEM NORMALISASI NO WHATSAPP WARGA =================
+        function normalisasiNomorHP(rawHp) {
+            if (!rawHp || typeof rawHp !== 'string') return "-";
+            let str = rawHp.trim();
+            if (str === "" || str === "-" || str === "null" || str === "undefined") return "-";
+
+            // Ambil hanya angka
+            let digitsOnly = str.replace(/[^0-9]/g, '');
+            if (digitsOnly.length < 5) return "-";
+
+            // Format otomatis ke 62...
+            if (digitsOnly.startsWith('0')) {
+                digitsOnly = '62' + digitsOnly.slice(1);
+            } else if (digitsOnly.startsWith('8')) {
+                digitsOnly = '62' + digitsOnly;
+            }
+
+            return digitsOnly;
+        }
+
+        function formatTampilanHP(normalizedHp) {
+            if (!normalizedHp || normalizedHp === "-") return "-";
+            let s = String(normalizedHp).replace(/[^0-9]/g, '');
+            let local = s.startsWith('62') ? ('0' + s.slice(2)) : s;
+            if (local.length >= 10) {
+                return local.slice(0, 4) + '-' + local.slice(4, 8) + '-' + local.slice(8);
+            }
+            return local;
+        }
+
+        // Fungsi Kirim Kwitansi Lunas ke WhatsApp Warga (1x Klik)
+        function kirimKwitansiWA(tagihanId) {
+            const tagihan = dataTagihan.find(t => String(t.id) === String(tagihanId));
+            if (!tagihan) return alert("Data tagihan tidak ditemukan!");
+
+            const warga = dataWarga.find(w => String(w.id) === String(tagihan.wargaId) || (w.nama === tagihan.nama && w.blok === tagihan.blok));
+            let hp = warga ? normalisasiNomorHP(warga.hp) : "-";
+
+            if (!hp || hp === "-") {
+                let inputHp = prompt(`Nomor WhatsApp untuk ${tagihan.nama} (Blok ${tagihan.blok}) belum tersimpan.\nMasukkan No WA (Bisa format +62 858-xxx atau 0858...):`);
+                if (!inputHp) return;
+                hp = normalisasiNomorHP(inputHp);
+                if (warga) {
+                    warga.hp = hp;
+                    simpanLocalState();
+                    renderWargaList();
+                    if (firebaseConnected && db) {
+                        try { db.collection("warga").doc(String(warga.id)).set({ hp: hp }, { merge: true }); } catch(e){}
+                    }
+                }
+            }
+
+            const cleanPeriode = String(tagihan.periode || '2026').replace(/\s+/g, '-').toUpperCase();
+            const cleanBlok = String(tagihan.blok || 'UNIT').replace(/[^a-zA-Z0-9]/g, '-').toUpperCase();
+            const noKwitansi = `KW/RT02/${cleanPeriode}/${cleanBlok}`;
+            const nominal = Number(tagihan.nominal) || 0;
+
+            const pesan = `*KWITANSI RESMI PEMBAYARAN IURAN KAS RT.02/RW.07*\n` +
+                `*Taman Kertamukti Residence*\n` +
+                `-------------------------------------------\n` +
+                `Yth. Bpk/Ibu *${tagihan.nama}* (Blok ${tagihan.blok})\n\n` +
+                `Alhamdulillah, pembayaran iuran Anda telah kami terima dan tercatat *LUNAS (TERVERIFIKASI) ✅* di sistem kas RT.02 dengan rincian sbb:\n\n` +
+                `• *Jenis Kas:* ${tagihan.jenisKas}\n` +
+                `• *Periode:* ${tagihan.periode}\n` +
+                `• *Nominal:* Rp ${nominal.toLocaleString('id-ID')}\n` +
+                `• *No. Kwitansi:* ${noKwitansi}\n\n` +
+                `Terima kasih banyak atas partisipasi dan kerja samanya dalam memajukan lingkungan RT.02! 🙏\n\n` +
+                `_Salam hangat,_\n` +
+                `*Pengurus & Bendahara RT 002 / RW 007 TKR*`;
+
+            const urlWA = `https://wa.me/${hp}?text=${encodeURIComponent(pesan)}`;
+            window.open(urlWA, '_blank');
+        }
+
+        // Fungsi Kirim Tagihan / Pengingat ke WhatsApp Warga (1x Klik)
+        function kirimTagihanWA(tagihanId) {
+            const tagihan = dataTagihan.find(t => String(t.id) === String(tagihanId));
+            if (!tagihan) return alert("Data tagihan tidak ditemukan!");
+
+            const warga = dataWarga.find(w => String(w.id) === String(tagihan.wargaId) || (w.nama === tagihan.nama && w.blok === tagihan.blok));
+            let hp = warga ? normalisasiNomorHP(warga.hp) : "-";
+
+            if (!hp || hp === "-") {
+                let inputHp = prompt(`Nomor WhatsApp untuk ${tagihan.nama} (Blok ${tagihan.blok}) belum tersimpan.\nMasukkan No WA (Bisa format +62 858-xxx atau 0858...):`);
+                if (!inputHp) return;
+                hp = normalisasiNomorHP(inputHp);
+                if (warga) {
+                    warga.hp = hp;
+                    simpanLocalState();
+                    renderWargaList();
+                    if (firebaseConnected && db) {
+                        try { db.collection("warga").doc(String(warga.id)).set({ hp: hp }, { merge: true }); } catch(e){}
+                    }
+                }
+            }
+
+            const nominal = Number(tagihan.nominal) || 0;
+
+            const pesan = `*PEMBERITAHUAN IURAN KAS RT.02/RW.07*\n` +
+                `*Taman Kertamukti Residence*\n` +
+                `-------------------------------------------\n` +
+                `Yth. Bpk/Ibu *${tagihan.nama}* (Blok ${tagihan.blok})\n\n` +
+                `Mengingatkan untuk pembayaran iuran RT dengan rincian sbb:\n` +
+                `• *Jenis Kas:* ${tagihan.jenisKas}\n` +
+                `• *Periode:* ${tagihan.periode}\n` +
+                `• *Nominal:* Rp ${nominal.toLocaleString('id-ID')}\n` +
+                `• *Status:* Belum Lunas ⏳\n\n` +
+                `*Metode Pembayaran:*\n` +
+                `1. 📱 *Scan QRIS:* KAS RT02/RW07 TAMANKERTAMUKTIRESIDENCE\n` +
+                `2. 🏦 *Transfer Bank BSI:* 7358438614 a.n Bpk. Anggi\n` +
+                `3. 💵 *Tunai / Cash* ke Pengurus RT\n\n` +
+                `_Jatuh tempo pembayaran paling lambat tanggal 10 di setiap bulannya._\n\n` +
+                `Jika sudah melakukan pembayaran, mohon konfirmasikan bukti transfer ke nomor ini. Terima kasih! 🙏\n\n` +
+                `*Pengurus & Bendahara RT 002 / RW 007 TKR*`;
+
+            const urlWA = `https://wa.me/${hp}?text=${encodeURIComponent(pesan)}`;
+            window.open(urlWA, '_blank');
         }
 
         function renderWargaList() {
@@ -2516,11 +2639,21 @@
                 else if (w.status === "Pindah") badgeStatusWarga = `<span class="bg-red-100 text-red-600 font-bold text-[9px] px-2 py-0.5 rounded-full">🚪 Pindah</span>`;
                 else badgeStatusWarga = `<span class="bg-blue-50 text-blue-600 font-bold text-[9px] px-2 py-0.5 rounded-full">Warga ${w.status}</span>`;
 
-                let actionTd = isAdminLoggedIn ? `<td class="py-2.5 px-3 text-right space-x-1"><button onclick="editWargaData('${w.id}')" class="text-blue-600 font-bold bg-blue-50 px-2 py-1 rounded">Edit</button><button onclick="hapusWargaData('${w.id}')" class="text-red-600 font-bold bg-red-50 px-2 py-1 rounded">Hapus</button></td>` : '';
+                let actionTd = isAdminLoggedIn ? `<td class="py-2.5 px-3 text-right space-x-1"><button onclick="editWargaData('${w.id}')" class="text-blue-600 font-bold bg-blue-50 px-2.5 py-1 rounded-lg text-xs">✏️ Edit</button><button onclick="hapusWargaData('${w.id}')" class="text-red-600 font-bold bg-red-50 px-2.5 py-1 rounded-lg text-xs">🗑️ Hapus</button></td>` : '';
+                
+                let hpClean = normalisasiNomorHP(w.hp);
+                let hpBadge = hpClean !== "-" ? 
+                    `<a href="https://wa.me/${hpClean}" target="_blank" class="inline-flex items-center gap-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold text-[10px] px-2.5 py-0.5 rounded-full transition shadow-xs" title="Chat WhatsApp">💬 ${formatTampilanHP(hpClean)}</a>` : 
+                    `<span class="text-slate-400 text-[10px] italic">- No WA belum diisi -</span>`;
+
                 tbody.innerHTML += `
-                    <tr class="hover:bg-slate-50">
-                        <td class="py-2.5 px-3"><b>${w.nama}</b><br><span class="text-[10px] text-slate-400">Blok: ${w.blok} | </span> ${badgeStatusWarga}</td>
-                        <td class="py-2.5 px-3">Rp ${(w.nominal||0).toLocaleString('id-ID')}</td>
+                    <tr class="hover:bg-slate-50 border-b border-slate-100 transition">
+                        <td class="py-2.5 px-3">
+                            <b class="text-slate-900 font-bold text-xs">${w.nama}</b><br>
+                            <span class="text-[10px] text-slate-500 font-semibold">Blok: ${w.blok} | </span> ${badgeStatusWarga}
+                            <div class="mt-1">${hpBadge}</div>
+                        </td>
+                        <td class="py-2.5 px-3 font-extrabold text-slate-800 text-xs">Rp ${(w.nominal||0).toLocaleString('id-ID')}</td>
                         ${actionTd}
                     </tr>`;
             });
@@ -2541,7 +2674,7 @@
             document.getElementById('edit-id-warga').value = w.id;
             document.getElementById('w-nama').value = w.nama;
             document.getElementById('w-blok').value = w.blok;
-            document.getElementById('w-hp').value = w.hp;
+            document.getElementById('w-hp').value = formatTampilanHP(w.hp) !== '-' ? formatTampilanHP(w.hp) : (w.hp || '');
             document.getElementById('w-status').value = w.status || "Tetap";
             document.getElementById('w-nominal').value = w.nominal;
             document.getElementById('w-jeniskas').value = w.jenisKas;
@@ -2749,8 +2882,19 @@
                 let aksiTd = '';
                 if (isAdminLoggedIn) {
                     let aksiBtn = t.status === "LUNAS" ?
-                        `<div class="flex items-center justify-center gap-1.5"><button onclick="cetakEkwitansiTagihan('${t.id}')" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold px-2 py-1 rounded-lg text-[11px] transition shadow-xs" title="Cetak Kwitansi">🧾 Kwitansi</button><button onclick="ubahStatusTagihan('${t.id}', 'BELUM')" class="text-slate-400 text-[11px] underline">Batal</button><button onclick="bukaModalEditNominalTagihan('${t.id}')" class="bg-blue-50 hover:bg-blue-100 text-blue-600 font-bold px-2 py-1 rounded-lg text-[11px]">✏️ Edit</button><button onclick="hapusTagihan('${t.id}')" class="bg-red-50 hover:bg-red-100 text-red-600 font-bold px-2 py-1 rounded-lg text-[11px]">🗑️ Hapus</button></div>` :
-                        `<div class="flex items-center justify-center gap-1.5"><button onclick="ubahStatusTagihan('${t.id}', 'LUNAS')" class="bg-green-600 hover:bg-green-700 text-white text-[11px] font-bold px-2.5 py-1 rounded-lg">✔ Bayar</button><button onclick="bukaModalEditNominalTagihan('${t.id}')" class="bg-blue-50 hover:bg-blue-100 text-blue-600 font-bold px-2 py-1 rounded-lg text-[11px]">✏️ Edit</button><button onclick="hapusTagihan('${t.id}')" class="bg-red-50 hover:bg-red-100 text-red-600 font-bold px-2 py-1 rounded-lg text-[11px]">🗑️ Hapus</button></div>`;
+                        `<div class="flex flex-wrap items-center justify-center gap-1.5">
+                            <button onclick="kirimKwitansiWA('${t.id}')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-2.5 py-1 rounded-lg text-[11px] transition shadow-xs flex items-center gap-1 cursor-pointer" title="Kirim Kwitansi ke WhatsApp Warga">💬 WA</button>
+                            <button onclick="cetakEkwitansiTagihan('${t.id}')" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold px-2 py-1 rounded-lg text-[11px] transition shadow-xs cursor-pointer" title="Cetak Kwitansi PDF">🧾 Cetak</button>
+                            <button onclick="ubahStatusTagihan('${t.id}', 'BELUM')" class="text-slate-400 text-[11px] underline cursor-pointer">Batal</button>
+                            <button onclick="bukaModalEditNominalTagihan('${t.id}')" class="bg-blue-50 hover:bg-blue-100 text-blue-600 font-bold px-2 py-1 rounded-lg text-[11px] cursor-pointer">✏️ Edit</button>
+                            <button onclick="hapusTagihan('${t.id}')" class="bg-red-50 hover:bg-red-100 text-red-600 font-bold px-2 py-1 rounded-lg text-[11px] cursor-pointer">🗑️ Hapus</button>
+                        </div>` :
+                        `<div class="flex flex-wrap items-center justify-center gap-1.5">
+                            <button onclick="ubahStatusTagihan('${t.id}', 'LUNAS')" class="bg-green-600 hover:bg-green-700 text-white text-[11px] font-bold px-2.5 py-1 rounded-lg cursor-pointer">✔ Bayar</button>
+                            <button onclick="kirimTagihanWA('${t.id}')" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold px-2 py-1 rounded-lg text-[11px] transition shadow-xs flex items-center gap-1 cursor-pointer" title="Kirim Pengingat Tagihan ke WhatsApp Warga">💬 Tagih WA</button>
+                            <button onclick="bukaModalEditNominalTagihan('${t.id}')" class="bg-blue-50 hover:bg-blue-100 text-blue-600 font-bold px-2 py-1 rounded-lg text-[11px] cursor-pointer">✏️ Edit</button>
+                            <button onclick="hapusTagihan('${t.id}')" class="bg-red-50 hover:bg-red-100 text-red-600 font-bold px-2 py-1 rounded-lg text-[11px] cursor-pointer">🗑️ Hapus</button>
+                        </div>`;
                     aksiTd = `<td class="py-2.5 px-3 text-center">${aksiBtn}</td>`;
                 }
 
@@ -4134,5 +4278,5 @@
         </div>
     </div>
 
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a2969a704e3bf46d',t:'MTc4NjQ0NDYyOA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a29c9cab795f1982',t:'MTc4NjUwNzYzNA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
