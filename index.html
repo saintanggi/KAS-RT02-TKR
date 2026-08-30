@@ -225,6 +225,13 @@
                             <p class="text-[11px] text-slate-500">Dibatasi 10 data per halaman.</p>
                         </div>
                         <div class="flex flex-wrap items-center gap-2">
+                            <select id="pilih-item-per-halaman" onchange="gantiItemPerHalamanTagihan(this.value)" class="bg-slate-50 border border-slate-200 text-xs font-semibold px-2.5 py-2 rounded-xl outline-none" title="Tampilkan jumlah per halaman">
+                                <option value="10">10 / hal</option>
+                                <option value="25">25 / hal</option>
+                                <option value="50">50 / hal</option>
+                                <option value="100">100 / hal</option>
+                                <option value="ALL">Semua</option>
+                            </select>
                             <select id="pilih-bulan-filter" onchange="gantiBulanFilter()" class="bg-slate-50 border border-slate-200 text-xs font-semibold px-3 py-2 rounded-xl outline-none">
                                 <option value="Januari 2026">Januari 2026</option>
                                 <option value="Februari 2026">Februari 2026</option>
@@ -1122,9 +1129,16 @@
             return listWarga[0] || "Kas Bulanan";
         })();
         let halamanAktifTagihan = 1;
+
+        function gantiItemPerHalamanTagihan(val) {
+            itemPerHalaman = val === 'ALL' ? 99999 : parseInt(val) || 10;
+            halamanAktifTagihan = 1;
+            renderTagihan();
+        }
+
         let halamanAktifWarga = 1;
         let halamanAktifTransaksi = 1;
-        const itemPerHalaman = 10;
+        let itemPerHalaman = 10;
         const itemPerHalamanWarga = 10;
         const itemPerHalamanTransaksi = 10;
 
@@ -1165,7 +1179,7 @@
                 const snapWarga = await db.collection("warga").get();
                 if(!snapWarga.empty){
                     let cloudWarga = [];
-                    snapWarga.forEach(d=> cloudWarga.push(d.data()));
+                    snapWarga.forEach(d=> cloudWarga.push({ id: d.id, ...d.data() }));
                     if(cloudWarga.length > 0) dataWarga = bersihkanDataWarga(cloudWarga);
                 }
 
@@ -1173,7 +1187,7 @@
                 const snapTagihan = await db.collection("tagihan").get();
                 if(!snapTagihan.empty){
                     let cloudTagihan = [];
-                    snapTagihan.forEach(d=> cloudTagihan.push(d.data()));
+                    snapTagihan.forEach(d=> cloudTagihan.push({ id: d.id, ...d.data() }));
                     if(cloudTagihan.length > 0) dataTagihan = bersihkanDataTagihan(cloudTagihan.map(t=>({...t, periode: bersihkanFormatPeriode(t.periode)})));
                 }
 
@@ -1181,7 +1195,7 @@
                 const snapTrx = await db.collection("transaksi").get();
                 if(!snapTrx.empty){
                     let cloudTrx = [];
-                    snapTrx.forEach(d=> cloudTrx.push(d.data()));
+                    snapTrx.forEach(d=> cloudTrx.push({ id: d.id, ...d.data() }));
                     if(cloudTrx.length > 0) dataTransaksi = bersihkanDataTransaksi(cloudTrx);
                 }
 
@@ -2690,12 +2704,27 @@
             }
         }
 
-        function prosesGenerateTagihanCustom() {
+        async function prosesGenerateTagihanCustom() {
             if(!isAdminLoggedIn) return;
-            if(!isDataLoaded){
-                return alert("⏳ Data warga belum selesai loading dari Firebase! Tunggu sampai 'Firebase sync selesai' di Console, lalu coba lagi.");
+            
+            // Tarik data warga terbaru dari Cloud/Firestore secara langsung agar menjamin seluruh warga (140 orang) termuat lengkap
+            if(firebaseConnected) {
+                try {
+                    const snapW = await db.collection("warga").get();
+                    if(!snapW.empty) {
+                        let freshW = [];
+                        snapW.forEach(d => freshW.push({ id: d.id, ...d.data() }));
+                        if(freshW.length > 0) {
+                            dataWarga = bersihkanDataWarga(freshW);
+                            simpanLocalState();
+                        }
+                    }
+                } catch(e) {
+                    console.log("Gagal sync fresh warga sebelum generate:", e);
+                }
             }
-            if(dataWarga.length===0){
+
+            if(!dataWarga || dataWarga.length === 0){
                 return alert("❌ Data warga kosong! Tidak bisa Generate. Cek Firestore → warga.");
             }
             const jenisKasPilihan = document.getElementById('gen-jeniskas').value;
@@ -4278,5 +4307,5 @@
         </div>
     </div>
 
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a29c9cab795f1982',t:'MTc4NjUwNzYzNA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3327e834baa5f4d',t:'MTc4ODA3OTI2Mw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
