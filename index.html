@@ -3245,7 +3245,7 @@
                 let buktiBtn = hasBukti ? `<button onclick="bukaLightboxTrx('${t.id}')" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-3 py-1 rounded-lg shadow-sm transition text-xs flex items-center gap-1 mx-auto"><span>👁️ Lihat</span></button>` : `<span class="text-slate-300 text-xs font-semibold">-</span>`;
 
                 let checkboxTd = isAdminLoggedIn ? `<td class="py-2.5 px-3 text-center"><input type="checkbox" class="trx-checkbox w-4 h-4 accent-red-600 cursor-pointer" data-id="${t.id}" onchange="updateSelectedCount()"></td>` : '';
-                let actionTd = isAdminLoggedIn ? `<td class="py-2.5 px-3 text-center"><button onclick="hapusTransaksi('${t.id}')" class="text-red-500 font-bold bg-red-50 hover:bg-red-100 px-2 py-0.5 rounded transition">Hapus</button></td>` : '';
+                let actionTd = isAdminLoggedIn ? `<td class="py-2.5 px-3 text-center flex items-center justify-center gap-1.5"><button onclick="bukaModalEditTransaksi('${t.id}')" class="text-blue-600 font-bold bg-blue-50 hover:bg-blue-100 px-2.5 py-1 rounded-lg transition shadow-xs">Edit</button><button onclick="hapusTransaksi('${t.id}')" class="text-red-600 font-bold bg-red-50 hover:bg-red-100 px-2.5 py-1 rounded-lg transition shadow-xs">Hapus</button></td>` : '';
                 
                 tbody.innerHTML += `
                     <tr class="hover:bg-white/70 border-b border-slate-200/50 transition">
@@ -3321,6 +3321,69 @@
                 alert("Transaksi terpilih berhasil dihapus permanen!");
             }
         }
+
+        async 
+        const bukaModalEditTransaksi = (id) => {
+            if(!isAdminLoggedIn) return alert("Akses khusus admin!");
+            let tr = dataTransaksi.find(x => String(x.id) === String(id));
+            if(!tr) return alert("Data transaksi tidak ditemukan!");
+
+            document.getElementById('edit-trx-id').value = tr.id;
+            
+            const selectKas = document.getElementById('edit-trx-jeniskas');
+            if(selectKas) {
+                selectKas.innerHTML = '';
+                jenisKasList.forEach(k => selectKas.innerHTML += `<option value="${k}">${k}</option>`);
+                selectKas.value = tr.jenisKas || jenisKasList[0];
+            }
+
+            document.getElementById('edit-trx-tanggal').value = tr.tanggal || new Date().toISOString().split('T')[0];
+            document.getElementById('edit-trx-keterangan').value = tr.keterangan || '';
+            document.getElementById('edit-trx-nominal').value = tr.nominal || 0;
+
+            toggleModal('modal-edit-transaksi', 'open');
+        };
+
+        const tutupModalEditTransaksi = () => toggleModal('modal-edit-transaksi', 'close');
+
+        async function simpanEditTransaksi() {
+            if(!isAdminLoggedIn) return;
+            const id = document.getElementById('edit-trx-id').value;
+            const jenisKas = document.getElementById('edit-trx-jeniskas').value;
+            const tanggal = document.getElementById('edit-trx-tanggal').value;
+            const keterangan = document.getElementById('edit-trx-keterangan').value.trim();
+            const nominal = parseInt(document.getElementById('edit-trx-nominal').value) || 0;
+
+            if(!keterangan || nominal <= 0) {
+                return alert("❌ Keterangan dan Nominal harus diisi dengan benar!");
+            }
+
+            let idx = dataTransaksi.findIndex(x => String(x.id) === String(id));
+            if(idx === -1) return alert("Transaksi tidak ditemukan!");
+
+            dataTransaksi[idx].jenisKas = jenisKas;
+            dataTransaksi[idx].tanggal = tanggal;
+            dataTransaksi[idx].keterangan = keterangan;
+            dataTransaksi[idx].nominal = nominal;
+
+            dataTransaksi = bersihkanDataTransaksi(dataTransaksi);
+            simpanLocalState();
+            tutupModalEditTransaksi();
+
+            renderRiwayatTransaksi();
+            updateDashboardView();
+
+            if(firebaseConnected) {
+                db.collection("transaksi").doc(String(id)).set(dataTransaksi[idx], { merge: true }).then(() => {
+                    tulisLog("EDIT_TRANSAKSI", `Edit ID ${id}: ${jenisKas} - ${keterangan} Rp ${nominal}`);
+                }).catch(e => {
+                    console.log("Gagal sync edit transaksi ke Cloud:", e);
+                });
+            }
+
+            alert("✅ Transaksi berhasil diperbarui!");
+        }
+
 
         async function hapusTransaksi(id) {
             if(!isAdminLoggedIn) return;
@@ -4307,5 +4370,5 @@
         </div>
     </div>
 
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3327e834baa5f4d',t:'MTc4ODA3OTI2Mw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</body>
 </html>
