@@ -1095,6 +1095,14 @@
                 if(t && t.periode) {
                     t.periode = bersihkanFormatPeriode(t.periode);
                 }
+                // Perbaiki ID tagihan lama yang masih memakai spasi (contoh: "T_100_September 2026_Kas Bulanan")
+                // menjadi format tanpa spasi (contoh: "T_100_September2026_KasBulanan") agar tidak dobel saat generate.
+                if(t && t.id && String(t.id).includes(' ')) {
+                    let wid = t.wargaId || '';
+                    let per = bersihkanFormatPeriode(t.periode).replace(/\s+/g, '');
+                    let kas = String(t.jenisKas || '').replace(/\s+/g, '');
+                    if(wid && per && kas) t.id = `T_${String(wid)}_${per}_${kas}`;
+                }
                 return t;
             }).filter((t, idx) => {
                 if(!t) return false;
@@ -1261,7 +1269,7 @@
                 db.collection("transaksi").onSnapshot(snap => {
                     if(!snap.empty){
                         let list = [];
-                        snap.forEach(d => list.push(d.data()));
+                        snap.forEach(d => list.push({ id: d.id, ...d.data() }));
                         dataTransaksi = bersihkanDataTransaksi(list);
                         simpanLocalState();
                         renderRiwayatTransaksi();
@@ -1273,7 +1281,7 @@
                 db.collection("tagihan").onSnapshot(snap => {
                     if(!snap.empty){
                         let list = [];
-                        snap.forEach(d => list.push(d.data()));
+                        snap.forEach(d => list.push({ id: d.id, ...d.data() }));
                         dataTagihan = bersihkanDataTagihan(list);
                         simpanLocalState();
                         renderTagihan();
@@ -1291,11 +1299,11 @@
                 const docKas = await db.collection("config").doc("jenisKas").get();
                 if(docKas.exists) jenisKasList = docKas.data().list;
                 const snapWarga = await db.collection("warga").get();
-                if(!snapWarga.empty){ let arr=[]; snapWarga.forEach(d=>arr.push(d.data())); dataWarga = bersihkanDataWarga(arr); }
+                if(!snapWarga.empty){ let arr=[]; snapWarga.forEach(d=>arr.push({ id: d.id, ...d.data() })); dataWarga = bersihkanDataWarga(arr); }
                 const snapTagihan = await db.collection("tagihan").get();
-                if(!snapTagihan.empty){ let arr=[]; snapTagihan.forEach(d=>arr.push(d.data())); dataTagihan = bersihkanDataTagihan(arr); }
+                if(!snapTagihan.empty){ let arr=[]; snapTagihan.forEach(d=>arr.push({ id: d.id, ...d.data() })); dataTagihan = bersihkanDataTagihan(arr); }
                 const snapTrx = await db.collection("transaksi").get();
-                if(!snapTrx.empty){ let arr=[]; snapTrx.forEach(d=>arr.push(d.data())); dataTransaksi = bersihkanDataTransaksi(arr); }
+                if(!snapTrx.empty){ let arr=[]; snapTrx.forEach(d=>arr.push({ id: d.id, ...d.data() })); dataTransaksi = bersihkanDataTransaksi(arr); }
                 simpanLocalState();
                 refreshDropdowns(); renderJenisKasList(); renderWargaList(); renderTagihan(); renderRiwayatTransaksi(); updateDashboardView();
                 alert("✅ Berhasil tarik data terbaru dari Firebase!");
@@ -2579,6 +2587,9 @@
                 }
             }
 
+            // 1. Otomatis download file PDF E-Kwitansi ke device admin
+            cetakEkwitansiTagihan(tagihanId);
+
             const cleanPeriode = String(tagihan.periode || '2026').replace(/\s+/g, '-').toUpperCase();
             const cleanBlok = String(tagihan.blok || 'UNIT').replace(/[^a-zA-Z0-9]/g, '-').toUpperCase();
             const noKwitansi = `KW/RT02/${cleanPeriode}/${cleanBlok}`;
@@ -2596,6 +2607,8 @@
                 `Terima kasih banyak atas partisipasi dan kerja samanya dalam memajukan lingkungan RT.02! 🙏\n\n` +
                 `_Salam hangat,_\n` +
                 `*Pengurus & Bendahara RT 002 / RW 007 TKR*`;
+
+            alert("📄 File PDF E-Kwitansi telah di-download otomatis ke perangkat Anda.\n\nWhatsApp akan terbuka. Silakan lampirkan (attach) file PDF tersebut ke chat WhatsApp warga!");
 
             const urlWA = `https://wa.me/${hp}?text=${encodeURIComponent(pesan)}`;
             window.open(urlWA, '_blank');
@@ -2796,7 +2809,14 @@
                 let cleanKas = String(jenisKasPilihan).replace(/\s+/g, '');
                 let uniqueTagihanId = `T_${w.id}_${cleanPeriode}_${cleanKas}`;
 
-                const existingIndex = dataTagihan.findIndex(t => String(t.id) === String(uniqueTagihanId));
+                // COCOKKAN berdasar WARGA + PERIODE + JENIS KAS (bukan hanya ID), supaya
+                // tagihan lama yang id-nya memakai format berbeda (mis. ada spasi) tetap dikenali.
+                // Ini mencegah penggandaan saat warga baru ditambahkan lalu di-generate ulang.
+                const existingIndex = dataTagihan.findIndex(t =>
+                    String(t.wargaId) === String(w.id) &&
+                    bersihkanFormatPeriode(t.periode) === periodePilihan &&
+                    String(t.jenisKas).trim().toLowerCase() === String(jenisKasPilihan).trim().toLowerCase()
+                );
                 let sudahBayar = dataTransaksi.find(tr => {
                     if(!tr || !tr.keterangan) return false;
                     let matchTrxKas = tr.jenisKas && String(tr.jenisKas).trim().toLowerCase() === String(jenisKasPilihan).trim().toLowerCase();
@@ -2804,10 +2824,18 @@
                 });
 
                 if(existingIndex >= 0) {
+                    // Pertahankan status LUNAS bila sudah ada pembayaran
+                    if(sudahBayar) dataTagihan[existingIndex].status = "LUNAS";
                     dataTagihan[existingIndex].nominal = nominalCustom;
                     dataTagihan[existingIndex].jenisKas = jenisKasPilihan;
                     dataTagihan[existingIndex].periode = periodePilihan;
-                    if(sudahBayar) dataTagihan[existingIndex].status = "LUNAS";
+                    dataTagihan[existingIndex].wargaId = String(w.id);
+                    dataTagihan[existingIndex].nama = w.nama;
+                    dataTagihan[existingIndex].blok = w.blok;
+                    // Normalisasi ID lama (ada spasi) supaya format konsisten tanpa spasi
+                    if(String(dataTagihan[existingIndex].id).replace(/\s+/g, '') === uniqueTagihanId && String(dataTagihan[existingIndex].id) !== uniqueTagihanId) {
+                        dataTagihan[existingIndex].id = uniqueTagihanId;
+                    }
                 } else {
                     dataTagihan.push({
                         id: uniqueTagihanId, wargaId: String(w.id), nama: w.nama, blok: w.blok,
@@ -3358,18 +3386,25 @@
             let tr = dataTransaksi.find(x => String(x.id) === String(id));
             if(!tr) return alert("Data transaksi tidak ditemukan!");
 
-            document.getElementById('edit-trx-id').value = tr.id;
-            
-            const selectKas = document.getElementById('edit-trx-jeniskas');
-            if(selectKas) {
-                selectKas.innerHTML = '';
-                jenisKasList.forEach(k => selectKas.innerHTML += `<option value="${k}">${k}</option>`);
-                selectKas.value = tr.jenisKas || jenisKasList[0];
+            const elId = document.getElementById('edit-trx-id');
+            const elKas = document.getElementById('edit-trx-jeniskas');
+            const elTgl = document.getElementById('edit-trx-tanggal');
+            const elKet = document.getElementById('edit-trx-keterangan');
+            const elNom = document.getElementById('edit-trx-nominal');
+            const modal = document.getElementById('modal-edit-transaksi');
+
+            if(!modal || !elId || !elKas || !elTgl || !elKet || !elNom) {
+                console.error("Form edit transaksi belum termuat di DOM.", { modal, elId, elKas, elTgl, elKet, elNom });
+                return alert("Form edit transaksi belum termuat. Silakan refresh halaman (Ctrl+F5 / hard refresh), lalu coba lagi.");
             }
 
-            document.getElementById('edit-trx-tanggal').value = tr.tanggal || new Date().toISOString().split('T')[0];
-            document.getElementById('edit-trx-keterangan').value = tr.keterangan || '';
-            document.getElementById('edit-trx-nominal').value = tr.nominal || 0;
+            elId.value = tr.id;
+            elKas.innerHTML = '';
+            jenisKasList.forEach(k => elKas.innerHTML += `<option value="${k}">${k}</option>`);
+            elKas.value = tr.jenisKas || jenisKasList[0];
+            elTgl.value = tr.tanggal || new Date().toISOString().split('T')[0];
+            elKet.value = tr.keterangan || '';
+            elNom.value = tr.nominal || 0;
 
             toggleModal('modal-edit-transaksi', 'open');
         };
@@ -4400,6 +4435,5 @@
         </div>
     </div>
 
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a332e305edf6f879',t:'MTc4ODA4MzM4MA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v3d52b47920f24c319d37e2661827c42b1787588026925" integrity="sha512-d9sL6GJLXn6fInD1+TVXhTcQOsmxeHfmHAvwGDIxp5TO+uo1fiWW7mHomMj4MLRlCsJDTqXzWLHJFFlPCEIj/A==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f"}' crossorigin="anonymous"></script>
 </body>
 </html>
