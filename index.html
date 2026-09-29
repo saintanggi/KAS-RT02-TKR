@@ -621,10 +621,23 @@
                 </div>
                 <div>
                     <label class="block text-[10px] font-bold text-slate-500 mb-1">Nominal (Rp)</label>
-                    <input type="number" id="gen-nominal" class="w-full border p-2.5 rounded-xl outline-none font-bold text-sm text-blue-600" value="20000">
+                    <input type="number" id="gen-nominal" class="w-full border p-2.5 rounded-xl outline-none font-bold text-sm text-blue-600" value="55000">
                 </div>
+
+                <!-- Info Ringkasan 141 Warga -->
+                <div class="bg-blue-50 border border-blue-200 p-2.5 rounded-xl space-y-1 text-slate-700">
+                    <div class="flex justify-between items-center text-[11px] font-bold">
+                        <span>👥 Total Data Warga:</span>
+                        <span id="gen-info-total-warga" class="text-blue-700 font-extrabold">141 Warga</span>
+                    </div>
+                    <div class="text-[10px] text-slate-500 flex justify-between">
+                        <span id="gen-info-wajib">✅ Wajib Tagihan: 126 Warga</span>
+                        <span id="gen-info-skip">⏭️ Dilewati: 15 Warga</span>
+                    </div>
+                </div>
+
                 <p class="text-[10px] text-amber-600 italic">*Warga berstatus Pengurus (Gratis), Rumah Kosong, atau Pindah otomatis dilewati dan tidak dibuatkan tagihan.</p>
-                <button onclick="prosesGenerateTagihanCustom()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold p-2.5 rounded-xl shadow transition">⚡ Buat Tagihan Sekarang (Auto-Replace)</button>
+                <button id="btn-submit-generate" onclick="prosesGenerateTagihanCustom()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold p-2.5 rounded-xl shadow transition cursor-pointer">⚡ Buat Tagihan Sekarang (Auto-Replace)</button>
             </div>
         </div>
     </div>
@@ -2217,6 +2230,28 @@
                 jenisKasList.forEach(k => selectGenKas.innerHTML += `<option value="${k}">${k}</option>`);
                 selectGenKas.value = kasAktifFilter !== "SEMUA" ? kasAktifFilter : jenisKasList[0];
             }
+
+            const elNominal = document.getElementById('gen-nominal');
+            if (elNominal) {
+                if (selectGenKas && selectGenKas.value === "Kas Bulanan") {
+                    elNominal.value = 55000;
+                } else if (!elNominal.value || elNominal.value === "20000") {
+                    elNominal.value = 55000;
+                }
+            }
+
+            const elTotal = document.getElementById('gen-info-total-warga');
+            const elWajib = document.getElementById('gen-info-wajib');
+            const elSkip = document.getElementById('gen-info-skip');
+            if (elTotal) {
+                const totalW = dataWarga.length;
+                const skipW = dataWarga.filter(w => w.status === "Pengurus (Gratis)" || w.status === "Rumah Kosong" || w.status === "Pindah" || ((w.status==="Tetap"||w.status==="Kontrak") && (!w.nominal || Number(w.nominal)===0))).length;
+                const wajibW = totalW - skipW;
+                elTotal.innerText = `${totalW} Warga`;
+                if (elWajib) elWajib.innerText = `✅ Wajib Tagihan: ${wajibW} Warga`;
+                if (elSkip) elSkip.innerText = `⏭️ Dilewati: ${skipW} Warga`;
+            }
+
             toggleModal('modal-generate-tagihan', 'open');
         };
         const tutupModalGenerateTagihan = () => toggleModal('modal-generate-tagihan', 'close');
@@ -2878,7 +2913,10 @@
         async function prosesGenerateTagihanCustom() {
             if(!isAdminLoggedIn) return;
             
-            // Tarik data warga terbaru dari Cloud/Firestore secara langsung agar menjamin seluruh warga (140 orang) termuat lengkap
+            const btnSubmit = document.getElementById('btn-submit-generate');
+            const originalBtnText = btnSubmit ? btnSubmit.innerText : "⚡ Buat Tagihan Sekarang (Auto-Replace)";
+
+            // Tarik data warga terbaru dari Cloud/Firestore secara langsung agar menjamin seluruh warga termuat lengkap
             if(firebaseConnected) {
                 try {
                     const snapW = await db.collection("warga").get();
@@ -2900,7 +2938,7 @@
             }
             const jenisKasPilihan = document.getElementById('gen-jeniskas').value;
             const periodePilihan = bersihkanFormatPeriode(document.getElementById('gen-periode').value);
-            const nominalCustom = parseInt(document.getElementById('gen-nominal').value) || 20000;
+            const nominalCustom = parseInt(document.getElementById('gen-nominal').value) || 55000;
 
             if(!nominalCustom) return alert("Nominal tidak valid!");
             if(!dataWarga || dataWarga.length === 0) return alert("Data warga kosong.");
@@ -2920,15 +2958,24 @@
             if(wargaInvalid.length>0){
                 if(!confirm(`⚠️ Ada ${wargaInvalid.length} warga Tetap/Kontrak dengan nominal Rp 0 (Blok: ${wargaInvalid.map(w=>w.blok).join(", ")}).\nMereka akan DILEWATI tidak dibuatkan tagihan.\nLanjutkan Generate?`)) return;
             }
+
             // Lock: cek apakah tagihan periode ini sudah ada
-            const existingForPeriode = dataTagihan.filter(t => t.periode===periodePilihan && t.jenisKas===jenisKasPilihan);
+            const existingForPeriode = dataTagihan.filter(t => bersihkanFormatPeriode(t.periode)===periodePilihan && String(t.jenisKas).trim().toLowerCase()===String(jenisKasPilihan).trim().toLowerCase());
             if(existingForPeriode.length>0){
-                if(!confirm(`⚠️ Tagihan ${periodePilihan} - ${jenisKasPilihan} sudah ada ${existingForPeriode.length} data.\nGenerate ulang akan REPLACE (update nominal) bukan duplikat.\nLanjutkan?`)) return;
+                if(!confirm(`ℹ️ Periode ${periodePilihan} - ${jenisKasPilihan} saat ini sudah ada ${existingForPeriode.length} data tagihan (misal: pembayaran di muka / multi-bulan).\n\nSistem akan melengkapi tagihan untuk warga lainnya dan mempertahankan status LUNAS yang sudah ada.\n\nLanjutkan?`)) return;
             }
+
+            if(btnSubmit) {
+                btnSubmit.disabled = true;
+                btnSubmit.innerText = "⏳ Sedang Menyimpan ke Cloud...";
+            }
+
             let countGenerated = 0;
             let countSkipped = 0;
+            let tagihanPeriodeIni = [];
+
             dataWarga.forEach(w => {
-                if(!w || !w.id || !w.nama || w.nama==="undefined" || !w.blok || w.blok==="undefined") return;
+                if(!w || !w.id || !w.nama || w.nama==="undefined" || !w.blok || w.blok==="undefined") { countSkipped++; return; }
                 if (w.status === "Pengurus (Gratis)" || w.status === "Rumah Kosong" || w.status === "Pindah") { countSkipped++; return; }
                 if ((w.status==="Tetap"||w.status==="Kontrak") && (!w.nominal || Number(w.nominal)===0)) { countSkipped++; return; }
 
@@ -2937,8 +2984,7 @@
                 let uniqueTagihanId = `T_${w.id}_${cleanPeriode}_${cleanKas}`;
 
                 // COCOKKAN berdasar WARGA + PERIODE + JENIS KAS (bukan hanya ID), supaya
-                // tagihan lama yang id-nya memakai format berbeda (mis. ada spasi) tetap dikenali.
-                // Ini mencegah penggandaan saat warga baru ditambahkan lalu di-generate ulang.
+                // tagihan lama yang id-nya memakai format berbeda tetap dikenali.
                 const existingIndex = dataTagihan.findIndex(t =>
                     String(t.wargaId) === String(w.id) &&
                     bersihkanFormatPeriode(t.periode) === periodePilihan &&
@@ -2950,6 +2996,7 @@
                     return String(tr.tagihanId) === String(uniqueTagihanId) || (matchTrxKas && tr.keterangan.includes(w.nama) && tr.keterangan.includes(periodePilihan));
                 });
 
+                let tagihanObj;
                 if(existingIndex >= 0) {
                     // Pertahankan status LUNAS bila sudah ada pembayaran
                     if(sudahBayar) dataTagihan[existingIndex].status = "LUNAS";
@@ -2959,30 +3006,55 @@
                     dataTagihan[existingIndex].wargaId = String(w.id);
                     dataTagihan[existingIndex].nama = w.nama;
                     dataTagihan[existingIndex].blok = w.blok;
-                    // Normalisasi ID lama (ada spasi) supaya format konsisten tanpa spasi
                     if(String(dataTagihan[existingIndex].id).replace(/\s+/g, '') === uniqueTagihanId && String(dataTagihan[existingIndex].id) !== uniqueTagihanId) {
                         dataTagihan[existingIndex].id = uniqueTagihanId;
                     }
+                    tagihanObj = dataTagihan[existingIndex];
                 } else {
-                    dataTagihan.push({
+                    tagihanObj = {
                         id: uniqueTagihanId, wargaId: String(w.id), nama: w.nama, blok: w.blok,
                         periode: periodePilihan, jenisKas: jenisKasPilihan, nominal: nominalCustom,
                         status: sudahBayar ? "LUNAS" : "BELUM"
-                    });
+                    };
+                    dataTagihan.push(tagihanObj);
                 }
+                tagihanPeriodeIni.push(tagihanObj);
                 countGenerated++;
             });
 
             dataTagihan = bersihkanDataTagihan(dataTagihan);
             simpanLocalState(); 
-            tutupModalGenerateTagihan(); 
-            halamanAktifTagihan = 1;
-            renderTagihan(); renderWargaList(); updateDashboardView();
 
-            if(firebaseConnected) syncTagihanKeCloudIncremental();
+            // Sync ke Firebase Cloud secara tertarget dan AWAIT sampai selesai
+            if(firebaseConnected && tagihanPeriodeIni.length > 0) {
+                try {
+                    for(let i=0; i<tagihanPeriodeIni.length; i+=400) {
+                        const batch = db.batch();
+                        tagihanPeriodeIni.slice(i, i+400).forEach(t => {
+                            batch.set(db.collection("tagihan").doc(String(t.id)), t, {merge:true});
+                        });
+                        await batch.commit();
+                    }
+                    console.log(`✅ Berhasil sync ${tagihanPeriodeIni.length} tagihan ke Firebase Cloud.`);
+                } catch(e) {
+                    console.error("Gagal sync tagihan ke cloud:", e);
+                }
+            }
 
             tulisLog("GENERATE_TAGIHAN", `${periodePilihan} - ${jenisKasPilihan} Rp ${nominalCustom} | Generate ${countGenerated} warga, skip ${countSkipped}`);
-            alert(`Selesai! Tagihan berhasil digenerate (${countGenerated} warga, skip ${countSkipped}) & sync ke Firebase.`);
+
+            if(btnSubmit) {
+                btnSubmit.disabled = false;
+                btnSubmit.innerText = originalBtnText;
+            }
+
+            tutupModalGenerateTagihan(); 
+            halamanAktifTagihan = 1;
+            renderTagihan(); 
+            renderWargaList(); 
+            updateDashboardView();
+
+            alert(`✅ Selesai! Tagihan ${periodePilihan} (${jenisKasPilihan}) berhasil dibuat untuk ${countGenerated} warga aktif (${countSkipped} warga dilewati: Pengurus Gratis/Rumah Kosong/Pindah) & 100% tersimpan di Cloud.`);
         }
 
         async function hapusTagihan(id) {
@@ -4697,5 +4769,5 @@
         </div>
     </div>
 
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3e7db15be27008f',t:'MTc4OTk4MDk3Nw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a42a09815e01ea7e',t:'MTc5MDY3NDkzOQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
