@@ -118,33 +118,53 @@
                 </div>
 
                 <!-- MENU PILIH JENIS KAS -->
-                <div class="glass-card p-4 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-3">
+                <div class="glass-card p-4 rounded-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
                     <div>
-                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Buku Kas Aktif:</span>
-                        <h2 id="judul-kas-aktif" class="text-lg font-extrabold text-blue-700">Kas Bulanan</h2>
+                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Buku Kas & Periode Aktif:</span>
+                        <h2 id="judul-kas-aktif" class="text-lg font-extrabold text-blue-700 flex items-center flex-wrap gap-2">
+                            <span id="judul-kas-aktif-nama">Kas Bulanan</span>
+                            <span id="judul-periode-aktif" class="text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-lg">📅 September 2026</span>
+                        </h2>
                     </div>
-                    <div class="w-full md:w-auto">
-                        <select id="pilih-kas-menu" onchange="gantiFilterKas(this.value)" class="w-full md:w-60 bg-slate-50 border border-slate-200 text-xs font-bold px-3 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer">
-                            <option value="Kas Bulanan">Kas Bulanan</option>
-                            <option value="Kas Keamanan">Kas Keamanan</option>
-                            <option value="Kas Sosial / Kematian">Kas Sosial / Kematian</option>
-                        </select>
+                    <div class="flex flex-wrap items-center gap-2 w-full md:w-auto">
+                        <!-- Dropdown Pilih Buku Kas -->
+                        <div class="flex-1 sm:flex-initial">
+                            <label class="block text-[9px] font-bold text-slate-400 uppercase mb-0.5 sm:hidden">Pilih Kas:</label>
+                            <select id="pilih-kas-menu" onchange="gantiFilterKas(this.value)" class="w-full sm:w-48 bg-slate-50 border border-slate-200 text-xs font-bold px-3 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer shadow-xs">
+                                <option value="Kas Bulanan">Kas Bulanan</option>
+                                <option value="Kas Keamanan">Kas Keamanan</option>
+                                <option value="Kas Sosial / Kematian">Kas Sosial / Kematian</option>
+                            </select>
+                        </div>
+                        <!-- Dropdown Filter Bulan Dashboard -->
+                        <div class="flex-1 sm:flex-initial">
+                            <label class="block text-[9px] font-bold text-slate-400 uppercase mb-0.5 sm:hidden">Periode Bulan:</label>
+                            <select id="pilih-bulan-top" onchange="setPencarianBulan(this.value)" class="w-full sm:w-56 bg-blue-50/70 border border-blue-200 text-xs font-bold text-blue-900 px-3 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer shadow-xs" title="Pilih Periode Bulan untuk Ringkasan & Riwayat">
+                                <!-- Diisi dinamis -->
+                            </select>
+                        </div>
                     </div>
                 </div>
 
                 <!-- KARTU RINGKASAN SALDO -->
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    <div class="glass-card p-4 rounded-2xl">
-                        <p id="label-card-saldo" class="text-[10px] text-slate-400 font-bold tracking-wider mb-1 uppercase">Total Saldo Kas Ini</p>
+                    <div class="glass-card p-4 rounded-2xl relative overflow-hidden">
+                        <div class="flex justify-between items-start">
+                            <p id="label-card-saldo" class="text-[10px] text-slate-400 font-bold tracking-wider mb-1 uppercase">Saldo Bulan Ini</p>
+                            <span id="badge-saldo-periode" class="text-[9px] font-extrabold px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200">Bulan Terpilih</span>
+                        </div>
                         <h2 id="card-saldo" class="text-2xl font-extrabold text-slate-800">Rp 0</h2>
+                        <p id="sub-card-saldo" class="text-[10px] text-slate-500 font-medium mt-1">Total Saldo Kumulatif: Rp 0</p>
                     </div>
                     <div class="glass-card p-4 rounded-2xl">
-                        <p class="text-[10px] text-slate-400 font-bold tracking-wider mb-1 uppercase">Total Pemasukan</p>
+                        <p id="label-card-masuk" class="text-[10px] text-slate-400 font-bold tracking-wider mb-1 uppercase">Total Pemasukan</p>
                         <h2 id="card-masuk" class="text-2xl font-extrabold text-blue-600">Rp 0</h2>
+                        <p id="sub-card-masuk" class="text-[10px] text-slate-500 font-medium mt-1">Sesuai periode terpilih</p>
                     </div>
                     <div class="glass-card p-4 rounded-2xl">
-                        <p class="text-[10px] text-slate-400 font-bold tracking-wider mb-1 uppercase">Total Pengeluaran</p>
+                        <p id="label-card-keluar" class="text-[10px] text-slate-400 font-bold tracking-wider mb-1 uppercase">Total Pengeluaran</p>
                         <h2 id="card-keluar" class="text-2xl font-extrabold text-red-500">Rp 0</h2>
+                        <p id="sub-card-keluar" class="text-[10px] text-slate-500 font-medium mt-1">Sesuai periode terpilih</p>
                     </div>
                 </div>
 
@@ -286,7 +306,7 @@
                     <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
                         <div>
                             <h3 class="font-bold text-slate-800 text-base">Riwayat Transaksi Kas & Nota</h3>
-                            <p class="text-[11px] text-slate-500">Catatan pemasukan dan pengeluaran transparan (10 data per halaman).</p>
+                            <p id="sub-info-transaksi" class="text-[11px] text-slate-500">Catatan pemasukan dan pengeluaran transparan (10 data per halaman).</p>
                         </div>
                         <!-- Tombol Hapus Terpilih (Muncul Khusus Admin) -->
                         <div id="container-btn-hapus-terpilih" class="hidden">
@@ -296,7 +316,7 @@
                         </div>
                     </div>
 
-                    <!-- Filter Cepat Tipe Transaksi: Pemasukan (Default) / Pengeluaran / Semua -->
+                    <!-- Filter Cepat Tipe Transaksi: Pemasukan / Pengeluaran / Semua & Filter Bulan Transaksi -->
                     <div class="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-2.5 pt-1">
                         <div class="flex items-center gap-1 bg-slate-100 p-1 rounded-xl text-xs">
                             <button type="button" id="btn-filter-trx-masuk" onclick="gantiFilterTipeTransaksi('MASUK')" class="bg-blue-600 text-white shadow-xs px-3.5 py-1.5 rounded-lg transition flex items-center gap-1.5 cursor-pointer font-bold">
@@ -308,6 +328,11 @@
                             <button type="button" id="btn-filter-trx-semua" onclick="gantiFilterTipeTransaksi('SEMUA')" class="text-slate-600 hover:text-slate-900 px-3.5 py-1.5 rounded-lg transition flex items-center gap-1.5 cursor-pointer font-semibold">
                                 <span>📂 Semua</span>
                             </button>
+                        </div>
+                        <div class="w-full sm:w-auto">
+                            <select id="pilih-bulan-transaksi" onchange="setPencarianBulan(this.value)" class="w-full sm:w-52 bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 px-3 py-2 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer shadow-2xs" title="Filter Periode Bulan Riwayat Transaksi">
+                                <!-- Diisi dinamis -->
+                            </select>
                         </div>
                         <div class="flex-1">
                             <input type="text" id="cari-transaksi" oninput="setPencarianBersama(this.value)" placeholder="🔍 Cari transaksi (Nama, Blok, tanggal, nominal, dll)..." class="w-full bg-white border border-slate-200 text-xs px-3.5 py-2 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 shadow-sm font-medium">
@@ -1045,35 +1070,138 @@
             return `${namaBulan} ${tahun}`;
         }
 
+        // Variabel penyimpan filter bulan aktif secara global (default: bulan berjalan)
+        let bulanAktifFilter = getPeriodeBulanSekarang();
+
+        // Helper untuk mendeteksi periode bulan dari objek transaksi secara akurat
+        function getPeriodeFromTransaksi(t) {
+            if (!t) return "";
+            if (t.periode) return bersihkanFormatPeriode(t.periode);
+
+            // Cross-reference dengan tagihan terkait jika ada tagihanId
+            if (t.tagihanId) {
+                let tagihanM = dataTagihan.find(x => String(x.id).replace(/\s+/g, '') === String(t.tagihanId).replace(/\s+/g, ''));
+                if (tagihanM && tagihanM.periode) return bersihkanFormatPeriode(tagihanM.periode);
+            }
+
+            // Ekstrak nama bulan dan tahun dari teks keterangan (mis. "Iuran Warga - September 2026")
+            if (t.keterangan) {
+                for (let i = 0; i < NAMA_BULAN_INDONESIA.length; i++) {
+                    let b = NAMA_BULAN_INDONESIA[i];
+                    let rg = new RegExp(b + "\\s+(\\d{4})", "i");
+                    let m = t.keterangan.match(rg);
+                    if (m) {
+                        return `${b} ${m[1]}`;
+                    }
+                }
+            }
+
+            // Ekstrak dari field tanggal (format YYYY-MM-DD atau DD/MM/YYYY)
+            if (t.tanggal) {
+                let parts = String(t.tanggal).trim().split(/[-/]/);
+                if (parts.length === 3) {
+                    if (parts[0].length === 4) {
+                        let y = parts[0];
+                        let m = parseInt(parts[1], 10) - 1;
+                        if (m >= 0 && m < 12) return `${NAMA_BULAN_INDONESIA[m]} ${y}`;
+                    } else if (parts[2].length === 4) {
+                        let y = parts[2];
+                        let m = parseInt(parts[1], 10) - 1;
+                        if (m >= 0 && m < 12) return `${NAMA_BULAN_INDONESIA[m]} ${y}`;
+                    }
+                }
+                let d = new Date(t.tanggal);
+                if (!isNaN(d.getTime())) {
+                    let m = d.getMonth();
+                    let y = d.getFullYear();
+                    if (m >= 0 && m < 12) return `${NAMA_BULAN_INDONESIA[m]} ${y}`;
+                }
+            }
+
+            return "";
+        }
+
+        // Sinkronisasi filter bulan terpadu di seluruh komponen (Kartu Ringkasan, Tabel Tagihan, Tabel Transaksi)
+        function setPencarianBulan(val) {
+            if (!val) return;
+            bulanAktifFilter = val;
+
+            const elTop = document.getElementById('pilih-bulan-top');
+            const elFilterBulan = document.getElementById('pilih-bulan-filter');
+            const elTrxBulan = document.getElementById('pilih-bulan-transaksi');
+            const lblJudul = document.getElementById('judul-periode-aktif');
+
+            if (elTop && elTop.value !== val) elTop.value = val;
+            if (elFilterBulan && elFilterBulan.value !== val) elFilterBulan.value = val;
+            if (elTrxBulan && elTrxBulan.value !== val) elTrxBulan.value = val;
+
+            if (lblJudul) {
+                lblJudul.innerText = (val === "SEMUA") ? "🌐 Semua Bulan (Akumulasi)" : `📅 ${val}`;
+            }
+
+            halamanAktifTagihan = 1;
+            halamanAktifTransaksi = 1;
+
+            updateDashboardView();
+            renderTagihan();
+            renderRiwayatTransaksi();
+        }
+
         // Inisialisasi seluruh dropdown bulan di sistem agar otomatis memilih bulan saat ini
         function inisialisasiDropdownBulan() {
             const currentPeriode = getPeriodeBulanSekarang();
             const now = new Date();
             const currentYear = now.getFullYear() || 2026;
 
-            let optionsHtml = '';
+            // Opsi untuk filter dashboard & tabel (lengkap dengan opsi SEMUA BULAN)
+            let optionsFilterHtml = '';
             NAMA_BULAN_INDONESIA.forEach(bulan => {
                 let p = `${bulan} ${currentYear}`;
                 let selected = (p === currentPeriode) ? 'selected' : '';
-                optionsHtml += `<option value="${p}" ${selected}>${p}</option>`;
+                optionsFilterHtml += `<option value="${p}" ${selected}>📅 ${p}</option>`;
+            });
+            optionsFilterHtml += `<option value="SEMUA">🌐 Semua Bulan (Total Keseluruhan)</option>`;
+
+            // Opsi khusus modal generate tagihan & laporan (hanya 12 bulan)
+            let optionsGenHtml = '';
+            NAMA_BULAN_INDONESIA.forEach(bulan => {
+                let p = `${bulan} ${currentYear}`;
+                let selected = (p === currentPeriode) ? 'selected' : '';
+                optionsGenHtml += `<option value="${p}" ${selected}>${p}</option>`;
             });
 
+            const elTop = document.getElementById('pilih-bulan-top');
             const elFilterBulan = document.getElementById('pilih-bulan-filter');
+            const elTrxBulan = document.getElementById('pilih-bulan-transaksi');
             const elGenPeriode = document.getElementById('gen-periode');
             const elPdfBulan = document.getElementById('pdf-periode-bulan');
+            const lblJudul = document.getElementById('judul-periode-aktif');
 
+            if (elTop) {
+                elTop.innerHTML = optionsFilterHtml;
+                elTop.value = currentPeriode;
+            }
             if (elFilterBulan) {
-                elFilterBulan.innerHTML = optionsHtml;
+                elFilterBulan.innerHTML = optionsFilterHtml;
                 elFilterBulan.value = currentPeriode;
             }
+            if (elTrxBulan) {
+                elTrxBulan.innerHTML = optionsFilterHtml;
+                elTrxBulan.value = currentPeriode;
+            }
             if (elGenPeriode) {
-                elGenPeriode.innerHTML = optionsHtml;
+                elGenPeriode.innerHTML = optionsGenHtml;
                 elGenPeriode.value = currentPeriode;
             }
             if (elPdfBulan) {
-                elPdfBulan.innerHTML = optionsHtml;
+                elPdfBulan.innerHTML = optionsFilterHtml;
                 elPdfBulan.value = currentPeriode;
             }
+            if (lblJudul) {
+                lblJudul.innerText = `📅 ${currentPeriode}`;
+            }
+
+            bulanAktifFilter = currentPeriode;
         }
 
         function bersihkanFormatPeriode(val) {
@@ -2581,12 +2709,18 @@
             kasAktifFilter = nilai; 
             halamanAktifTagihan = 1; 
             halamanAktifTransaksi = 1;
-            const judul = document.getElementById('judul-kas-aktif');
-            if(judul) judul.innerText = nilai === "SEMUA" ? "Semua Jenis Kas (Pengurus)" : nilai;
-            updateDashboardView(); renderTagihan(); renderRiwayatTransaksi();
+            const judulNama = document.getElementById('judul-kas-aktif-nama');
+            if(judulNama) judulNama.innerText = nilai === "SEMUA" ? "Semua Jenis Kas (Pengurus)" : nilai;
+            updateDashboardView(); 
+            renderTagihan(); 
+            renderRiwayatTransaksi();
         }
 
-        function gantiBulanFilter() { halamanAktifTagihan = 1; renderTagihan(); }
+        function gantiBulanFilter() {
+            const el = document.getElementById('pilih-bulan-filter');
+            if (el) setPencarianBulan(el.value);
+            else { halamanAktifTagihan = 1; renderTagihan(); }
+        }
 
         function resetFormKas() {
             if(!isAdminLoggedIn) return;
@@ -3093,7 +3227,7 @@
 
         function renderTagihan() {
             const elBulan = document.getElementById('pilih-bulan-filter');
-            const bulanPilih = elBulan ? elBulan.value : "";
+            const bulanPilih = bulanAktifFilter || (elBulan ? elBulan.value : "");
             const tbody = document.getElementById('tabel-tagihan-warga');
             if(!tbody) return;
             tbody.innerHTML = '';
@@ -3114,7 +3248,7 @@
                     return false;
                 }
 
-                const matchBulan = t.periode && (String(t.periode).trim().toLowerCase() === String(bulanPilih).trim().toLowerCase());
+                const matchBulan = (bulanPilih === "SEMUA") || (t.periode && (String(t.periode).trim().toLowerCase() === String(bulanPilih).trim().toLowerCase()));
                 const matchKas = (isAdminLoggedIn && kasAktifFilter === "SEMUA") || 
                                  (t.jenisKas && String(t.jenisKas).trim().toLowerCase() === String(kasAktifFilter).trim().toLowerCase());
                 if (!matchBulan || !matchKas) return false;
@@ -3461,6 +3595,16 @@
                 const matchKas = (isAdminLoggedIn && kasAktifFilter === "SEMUA") || 
                                  (t.jenisKas && String(t.jenisKas).trim().toLowerCase() === String(kasAktifFilter).trim().toLowerCase());
                 if (!matchKas) return false;
+
+                // Filter Periode Bulan (Sesuai bulan yang dipilih atau Semua Bulan)
+                let isSemuaBulan = (bulanAktifFilter === "SEMUA");
+                if (!isSemuaBulan) {
+                    let perTrx = getPeriodeFromTransaksi(t);
+                    if (!perTrx || String(perTrx).trim().toLowerCase() !== String(bulanAktifFilter).trim().toLowerCase()) {
+                        return false;
+                    }
+                }
+
                 if (!keyword) return true;
 
                 let ket = String(t.keterangan || "").toLowerCase();
@@ -3824,7 +3968,11 @@
         }
 
         function updateDashboardView() {
-            let totalMasuk = 0, totalKeluar = 0;
+            let bulanPilih = bulanAktifFilter || getPeriodeBulanSekarang();
+            let isSemuaBulan = (bulanPilih === "SEMUA");
+
+            let totalMasukBulan = 0, totalKeluarBulan = 0;
+            let totalMasukSemua = 0, totalKeluarSemua = 0;
             
             dataTransaksi.forEach(t => {
                 if(!t) return;
@@ -3840,8 +3988,18 @@
                 
                 if (matchKas) {
                     let nominalAman = Number(t.nominal) || 0;
-                    if(t.tipe === "MASUK") totalMasuk += nominalAman;
-                    if(t.tipe === "KELUAR") totalKeluar += nominalAman;
+
+                    // Akumulasi seluruh periode
+                    if(t.tipe === "MASUK") totalMasukSemua += nominalAman;
+                    if(t.tipe === "KELUAR") totalKeluarSemua += nominalAman;
+
+                    // Periode bulan yang dipilih
+                    let perTrx = getPeriodeFromTransaksi(t);
+                    let matchBulan = isSemuaBulan || (perTrx && String(perTrx).trim().toLowerCase() === String(bulanPilih).trim().toLowerCase());
+                    if (matchBulan) {
+                        if(t.tipe === "MASUK") totalMasukBulan += nominalAman;
+                        if(t.tipe === "KELUAR") totalKeluarBulan += nominalAman;
+                    }
                 }
             });
 
@@ -3849,18 +4007,55 @@
             const cMasuk = document.getElementById('card-masuk');
             const cKeluar = document.getElementById('card-keluar');
             const lblSaldo = document.getElementById('label-card-saldo');
+            const lblMasuk = document.getElementById('label-card-masuk');
+            const lblKeluar = document.getElementById('label-card-keluar');
+            const subSaldo = document.getElementById('sub-card-saldo');
+            const subMasuk = document.getElementById('sub-card-masuk');
+            const subKeluar = document.getElementById('sub-card-keluar');
+            const badgePeriode = document.getElementById('badge-saldo-periode');
 
-            if (lblSaldo) {
-                if (isAdminLoggedIn && kasAktifFilter === "SEMUA") {
-                    lblSaldo.innerText = "TOTAL SALDO (SEMUA KAS RT)";
-                } else {
-                    lblSaldo.innerText = `TOTAL SALDO (${kasAktifFilter.toUpperCase()})`;
+            let namaKas = (isAdminLoggedIn && kasAktifFilter === "SEMUA") ? "SEMUA KAS RT" : kasAktifFilter.toUpperCase();
+
+            if (isSemuaBulan) {
+                if (lblSaldo) lblSaldo.innerText = `TOTAL SALDO (${namaKas})`;
+                if (lblMasuk) lblMasuk.innerText = `TOTAL PEMASUKAN (${namaKas})`;
+                if (lblKeluar) lblKeluar.innerText = `TOTAL PENGELUARAN (${namaKas})`;
+                if (cSaldo) cSaldo.innerText = `Rp ${(totalMasukSemua - totalKeluarSemua).toLocaleString('id-ID')}`;
+                if (cMasuk) cMasuk.innerText = `Rp ${totalMasukSemua.toLocaleString('id-ID')}`;
+                if (cKeluar) cKeluar.innerText = `Rp ${totalKeluarSemua.toLocaleString('id-ID')}`;
+                if (subSaldo) subSaldo.innerText = `Akumulasi seluruh periode kas`;
+                if (subMasuk) subMasuk.innerText = `Akumulasi seluruh pemasukan`;
+                if (subKeluar) subKeluar.innerText = `Akumulasi seluruh pengeluaran`;
+                if (badgePeriode) {
+                    badgePeriode.innerText = "🌐 Semua Bulan";
+                    badgePeriode.className = "text-[9px] font-extrabold px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 border border-purple-200";
+                }
+            } else {
+                let singkatanBulan = String(bulanPilih).toUpperCase();
+                if (lblSaldo) lblSaldo.innerText = `SALDO BULAN (${singkatanBulan})`;
+                if (lblMasuk) lblMasuk.innerText = `PEMASUKAN (${singkatanBulan})`;
+                if (lblKeluar) lblKeluar.innerText = `PENGELUARAN (${singkatanBulan})`;
+                if (cSaldo) cSaldo.innerText = `Rp ${(totalMasukBulan - totalKeluarBulan).toLocaleString('id-ID')}`;
+                if (cMasuk) cMasuk.innerText = `Rp ${totalMasukBulan.toLocaleString('id-ID')}`;
+                if (cKeluar) cKeluar.innerText = `Rp ${totalKeluarBulan.toLocaleString('id-ID')}`;
+                if (subSaldo) subSaldo.innerText = `Total Saldo Kumulatif: Rp ${(totalMasukSemua - totalKeluarSemua).toLocaleString('id-ID')}`;
+                if (subMasuk) subMasuk.innerText = `Pemasukan periode ${bulanPilih}`;
+                if (subKeluar) subKeluar.innerText = `Pengeluaran periode ${bulanPilih}`;
+                if (badgePeriode) {
+                    badgePeriode.innerText = `📅 ${bulanPilih}`;
+                    badgePeriode.className = "text-[9px] font-extrabold px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200";
                 }
             }
 
-            if(cSaldo) cSaldo.innerText = `Rp ${(totalMasuk - totalKeluar).toLocaleString('id-ID')}`;
-            if(cMasuk) cMasuk.innerText = `Rp ${totalMasuk.toLocaleString('id-ID')}`;
-            if(cKeluar) cKeluar.innerText = `Rp ${totalKeluar.toLocaleString('id-ID')}`;
+            // Update sub-info pada riwayat transaksi
+            const subTrx = document.getElementById('sub-info-transaksi');
+            if (subTrx) {
+                if (isSemuaBulan) {
+                    subTrx.innerText = "Catatan seluruh pemasukan dan pengeluaran (Semua Periode).";
+                } else {
+                    subTrx.innerText = `Catatan transaksi khusus periode: ${bulanPilih}.`;
+                }
+            }
 
             // Refresh grafik secara otomatis
             if (typeof renderSemuaGrafik === 'function') {
@@ -4769,5 +4964,5 @@
         </div>
     </div>
 
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a42a09815e01ea7e',t:'MTc5MDY3NDkzOQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a42a26540f6aea7a',t:'MTc5MDY3NjExOQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
