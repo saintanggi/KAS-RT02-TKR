@@ -272,6 +272,39 @@
                         </div>
                     </div>
 
+                    <!-- Filter Status (Semua / Lunas / Cicil / Belum) & Filter Blok Rumah (Lorong / Gang) -->
+                    <div class="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-2 pt-2 border-t border-slate-100 text-xs">
+                        <!-- Filter Status Tagihan Cepat -->
+                        <div class="flex flex-wrap items-center gap-1 bg-slate-100 p-1 rounded-xl">
+                            <button type="button" id="btn-filter-status-semua" onclick="gantiFilterStatusTagihan('SEMUA')" class="bg-blue-600 text-white shadow-xs px-3 py-1.5 rounded-lg transition font-bold flex items-center gap-1 cursor-pointer">
+                                <span>📂 Semua</span> <span id="badge-count-status-semua" class="text-[10px] bg-white/20 px-1.5 py-0.2 rounded-full font-bold">0</span>
+                            </button>
+                            <button type="button" id="btn-filter-status-lunas" onclick="gantiFilterStatusTagihan('LUNAS')" class="text-slate-600 hover:text-slate-900 px-3 py-1.5 rounded-lg transition font-semibold flex items-center gap-1 cursor-pointer">
+                                <span>✅ Lunas</span> <span id="badge-count-status-lunas" class="text-[10px] bg-slate-200 px-1.5 py-0.2 rounded-full font-bold">0</span>
+                            </button>
+                            <button type="button" id="btn-filter-status-cicil" onclick="gantiFilterStatusTagihan('SEBAGIAN')" class="text-slate-600 hover:text-amber-800 px-3 py-1.5 rounded-lg transition font-semibold flex items-center gap-1 cursor-pointer">
+                                <span>⏳ Cicil</span> <span id="badge-count-status-cicil" class="text-[10px] bg-amber-100 text-amber-800 font-bold px-1.5 py-0.2 rounded-full">0</span>
+                            </button>
+                            <button type="button" id="btn-filter-status-belum" onclick="gantiFilterStatusTagihan('BELUM')" class="text-slate-600 hover:text-red-700 px-3 py-1.5 rounded-lg transition font-semibold flex items-center gap-1 cursor-pointer">
+                                <span>🔴 Belum</span> <span id="badge-count-status-belum" class="text-[10px] bg-red-100 text-red-700 font-bold px-1.5 py-0.2 rounded-full">0</span>
+                            </button>
+                        </div>
+
+                        <!-- Filter Berdasarkan Blok Rumah (Lorong / Gang) -->
+                        <div class="flex items-center gap-1.5 w-full sm:w-auto">
+                            <span class="text-[11px] font-bold text-slate-500 whitespace-nowrap">🏘️ Blok:</span>
+                            <select id="pilih-blok-filter" onchange="gantiFilterBlok(this.value)" class="w-full sm:w-48 bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 px-3 py-2 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer shadow-2xs" title="Filter Khusus Blok Rumah Tertentu">
+                                <option value="SEMUA">Semua Blok (Keseluruhan)</option>
+                                <option value="C6">Blok C6</option>
+                                <option value="C7">Blok C7</option>
+                                <option value="C13">Blok C13</option>
+                                <option value="C14">Blok C14</option>
+                                <option value="C15">Blok C15</option>
+                                <option value="C20">Blok C20</option>
+                            </select>
+                        </div>
+                    </div>
+
                     <div class="pt-1">
                         <input type="text" id="cari-tagihan" oninput="setPencarianBersama(this.value)" placeholder="🔍 Ketik Nama atau Blok (otomatis mencari di Tagihan & Riwayat Transaksi)..." class="w-full bg-white border border-slate-200 text-xs px-3.5 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 shadow-sm">
                     </div>
@@ -2474,8 +2507,47 @@
                     deferredPromptPWA = null;
                 });
             } else {
-                alert("Untuk memasang aplikasi di HP:\n\n1. Di Chrome: Tekan titik tiga di kanan atas -> Pilih 'Tambahkan ke Layar Utama' (Add to Home Screen).\n2. Di Safari (iPhone): Tekan tombol Share -> Pilih 'Add to Home Screen'.");
+                toggleModal('modal-panduan-install-pwa', 'open');
             }
+        }
+
+        function tutupModalPanduanPWA() {
+            toggleModal('modal-panduan-install-pwa', 'close');
+        }
+
+        // ================= FITUR FILTER CEPAT STATUS & BLOK TAGIHAN =================
+        let filterStatusTagihan = "SEMUA"; // "SEMUA", "LUNAS", "SEBAGIAN", "BELUM"
+        let filterBlokTagihan = "SEMUA"; // "SEMUA", "C6", "C7", "C13", "C14", "C15", "C20"
+
+        function gantiFilterStatusTagihan(st) {
+            filterStatusTagihan = st;
+            halamanAktifTagihan = 1;
+
+            const btns = [
+                { id: 'btn-filter-status-semua', val: 'SEMUA', activeClass: 'bg-blue-600 text-white shadow-xs font-bold' },
+                { id: 'btn-filter-status-lunas', val: 'LUNAS', activeClass: 'bg-emerald-600 text-white shadow-xs font-bold' },
+                { id: 'btn-filter-status-cicil', val: 'SEBAGIAN', activeClass: 'bg-amber-600 text-white shadow-xs font-bold' },
+                { id: 'btn-filter-status-belum', val: 'BELUM', activeClass: 'bg-rose-600 text-white shadow-xs font-bold' }
+            ];
+
+            btns.forEach(b => {
+                const el = document.getElementById(b.id);
+                if (el) {
+                    if (b.val === st) {
+                        el.className = `px-3 py-1.5 rounded-lg transition flex items-center gap-1 cursor-pointer ${b.activeClass}`;
+                    } else {
+                        el.className = `px-3 py-1.5 rounded-lg transition flex items-center gap-1 cursor-pointer text-slate-600 hover:text-slate-900 font-semibold`;
+                    }
+                }
+            });
+
+            renderTagihan();
+        }
+
+        function gantiFilterBlok(blok) {
+            filterBlokTagihan = blok;
+            halamanAktifTagihan = 1;
+            renderTagihan();
         }
 
         function setupUIMode() {
@@ -3445,6 +3517,46 @@
             const keyword = inputCari ? inputCari.value.toLowerCase().trim() : (globalSearchKeyword || "").toLowerCase().trim();
             const cleanKeyword = keyword.replace(/blok/g, '').replace(/[\s\/\-\.]/g, '');
 
+            // Hitung statistik status untuk badge filter tab (berdasarkan bulan, kas, dan blok)
+            const baseForCounters = dataTagihan.filter(t => {
+                if(!t || !t.nama || t.nama==="undefined" || !t.blok || t.blok==="undefined") return false;
+                t.periode = bersihkanFormatPeriode(t.periode);
+                let wargaM = dataWarga.find(w => String(w.id) === String(t.wargaId) || (w.nama === t.nama && w.blok === t.blok));
+                if (wargaM && (wargaM.status === "Pengurus (Gratis)" || wargaM.status === "Rumah Kosong" || wargaM.status === "Pindah")) return false;
+                if (!isAdminLoggedIn && String(t.jenisKas || '').toLowerCase().includes("subsidi")) return false;
+
+                const matchBulan = (bulanPilih === "SEMUA") || (t.periode && (String(t.periode).trim().toLowerCase() === String(bulanPilih).trim().toLowerCase()));
+                const matchKas = (isAdminLoggedIn && kasAktifFilter === "SEMUA") || 
+                                 (t.jenisKas && String(t.jenisKas).trim().toLowerCase() === String(kasAktifFilter).trim().toLowerCase());
+                if (!matchBulan || !matchKas) return false;
+                if (filterBlokTagihan !== "SEMUA") {
+                    let bClean = String(t.blok || '').toUpperCase().replace(/\s+/g, '');
+                    if (!bClean.startsWith(filterBlokTagihan.toUpperCase())) return false;
+                }
+                return true;
+            });
+
+            let countSemua = baseForCounters.length;
+            let countLunas = 0, countCicil = 0, countBelum = 0;
+            baseForCounters.forEach(t => {
+                let totalNom = Number(t.nominal) || 0;
+                let terbayar = Number(t.terbayar);
+                if (isNaN(terbayar) || t.terbayar === undefined) terbayar = (t.status === "LUNAS") ? totalNom : 0;
+                let isCicil = (t.status === "SEBAGIAN") || (terbayar > 0 && terbayar < totalNom);
+                if (t.status === "LUNAS") countLunas++;
+                else if (isCicil) countCicil++;
+                else countBelum++;
+            });
+
+            const bSemua = document.getElementById('badge-count-status-semua');
+            const bLunas = document.getElementById('badge-count-status-lunas');
+            const bCicil = document.getElementById('badge-count-status-cicil');
+            const bBelum = document.getElementById('badge-count-status-belum');
+            if (bSemua) bSemua.innerText = countSemua;
+            if (bLunas) bLunas.innerText = countLunas;
+            if (bCicil) bCicil.innerText = countCicil;
+            if (bBelum) bBelum.innerText = countBelum;
+
             const filtered = dataTagihan.filter(t => {
                 if(!t) return false;
                 if(!t.nama || t.nama==="undefined" || !t.blok || t.blok==="undefined") return false;
@@ -3461,7 +3573,30 @@
                 const matchKas = (isAdminLoggedIn && kasAktifFilter === "SEMUA") || 
                                  (t.jenisKas && String(t.jenisKas).trim().toLowerCase() === String(kasAktifFilter).trim().toLowerCase());
                 if (!matchBulan || !matchKas) return false;
-                if (!keyword) return true;
+
+                // Filter Blok Rumah (Lorong / Gang)
+                if (filterBlokTagihan !== "SEMUA") {
+                    let bClean = String(t.blok || '').toUpperCase().replace(/\s+/g, '');
+                    if (!bClean.startsWith(filterBlokTagihan.toUpperCase())) {
+                        return false;
+                    }
+                }
+
+                // Filter Status Tagihan (Semua / Lunas / Cicil / Belum)
+                if (filterStatusTagihan !== "SEMUA") {
+                    let totalNom = Number(t.nominal) || 0;
+                    let terbayar = Number(t.terbayar);
+                    if (isNaN(terbayar) || t.terbayar === undefined) terbayar = (t.status === "LUNAS") ? totalNom : 0;
+                    let isCicil = (t.status === "SEBAGIAN") || (terbayar > 0 && terbayar < totalNom);
+
+                    if (filterStatusTagihan === "LUNAS") {
+                        if (t.status !== "LUNAS") return false;
+                    } else if (filterStatusTagihan === "SEBAGIAN") {
+                        if (!isCicil) return false;
+                    } else if (filterStatusTagihan === "BELUM") {
+                        if (t.status === "LUNAS" || isCicil) return false;
+                    }
+                }if (!keyword) return true;
 
                 let tNama = String(t.nama || '').toLowerCase();
                 let tBlok = String(t.blok || '').toLowerCase();
@@ -5384,5 +5519,5 @@
         </div>
     </div>
 
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a42a26540f6aea7a',t:'MTc5MDY3NjExOQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a4313d6c19a14abb',t:'MTc5MDc1MDQ2NQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a42a26540f6aea7a',t:'MTc5MDY3NjExOQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a43b0ce4fc6ef4e4',t:'MTc5MDg1MzMzNQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
